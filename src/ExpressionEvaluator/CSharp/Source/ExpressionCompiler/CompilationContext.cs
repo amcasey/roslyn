@@ -820,8 +820,7 @@ namespace Microsoft.CodeAnalysis.CSharp.ExpressionEvaluator
                             continue;
                         }
 
-                        NameSyntax typeSyntax = SyntaxFactory.ParseName(typeSymbol.ToDisplayString(s_fullNameFormat));
-                        if (!TryAddImport(importRecord.Alias, typeSyntax, typeSymbol, usingsBuilder, usingAliases, binder, importRecord))
+                        if (!TryAddImport(importRecord.Alias, typeSymbol, usingsBuilder, usingAliases, binder, importRecord))
                         {
                             continue;
                         }
@@ -858,7 +857,6 @@ namespace Microsoft.CodeAnalysis.CSharp.ExpressionEvaluator
                             else
                             {
                                 namespaceSymbol = BindNamespace(namespaceName, targetAssembly.GlobalNamespace);
-                                // TODO (acasey): arguably, we should update targetSyntax
                             }
                         }
                         else
@@ -941,7 +939,6 @@ namespace Microsoft.CodeAnalysis.CSharp.ExpressionEvaluator
 
         private static bool TryAddImport(
             string alias,
-            NameSyntax targetSyntax,
             NamespaceOrTypeSymbol targetSymbol,
             ArrayBuilder<NamespaceOrTypeAndUsingDirective> usingsBuilder,
             Dictionary<string, AliasAndUsingDirective> usingAliases,
@@ -950,8 +947,7 @@ namespace Microsoft.CodeAnalysis.CSharp.ExpressionEvaluator
         {
             if (alias == null)
             {
-                var usingSyntax = SyntaxFactory.UsingDirective(targetSyntax);
-                usingsBuilder.Add(new NamespaceOrTypeAndUsingDirective(targetSymbol, usingSyntax));
+                usingsBuilder.Add(new NamespaceOrTypeAndUsingDirective(targetSymbol, usingDirective: null));
             }
             else
             {
@@ -962,9 +958,8 @@ namespace Microsoft.CodeAnalysis.CSharp.ExpressionEvaluator
                     return false;
                 }
 
-                var usingSyntax = SyntaxFactory.UsingDirective(SyntaxFactory.NameEquals(aliasSyntax), targetSyntax);
                 var aliasSymbol = AliasSymbol.CreateCustomDebugInfoAlias(targetSymbol, aliasSyntax.Identifier, binder);
-                usingAliases.Add(alias, new AliasAndUsingDirective(aliasSymbol, usingSyntax));
+                usingAliases.Add(alias, new AliasAndUsingDirective(aliasSymbol, usingDirective: null));
             }
 
             return true;
