@@ -10,10 +10,10 @@ Imports ImportScope = Microsoft.VisualStudio.SymReaderInterop.ImportScope
 Namespace Microsoft.CodeAnalysis.VisualBasic.ExpressionEvaluator
     Friend Module SymUnmanagedReaderExtensions
         <Extension>
-        Public Function GetCustomDebugInfo(
+        Public Function GetMethodDebugInfo(
             reader As ISymUnmanagedReader,
             methodToken As Integer,
-            methodVersion As Integer) As CustomDebugInfo
+            methodVersion As Integer) As MethodDebugInfo
 
             Dim importStrings = reader.GetVisualBasicImportStrings(methodToken, methodVersion)
             If importStrings.IsDefault Then
@@ -74,7 +74,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.ExpressionEvaluator
                 projectLevelImportRecords.ToImmutableAndFree(),
                 fileLevelImportRecords.ToImmutableAndFree())
 
-            Return New CustomDebugInfo(importRecordGroups, ImmutableArray(Of ExternAliasRecord).Empty, defaultNamespaceName)
+            Return New MethodDebugInfo(importRecordGroups, ImmutableArray(Of ExternAliasRecord).Empty, defaultNamespaceName)
         End Function
 
         ' TODO (acasey): portable format overload (GH #702)

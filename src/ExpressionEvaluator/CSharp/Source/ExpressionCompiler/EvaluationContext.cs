@@ -33,7 +33,7 @@ namespace Microsoft.CodeAnalysis.CSharp.ExpressionEvaluator
         private readonly MethodSymbol _currentFrame;
         private readonly ImmutableArray<LocalSymbol> _locals;
         private readonly ImmutableSortedSet<int> _inScopeHoistedLocalIndices;
-        private readonly CustomDebugInfo _customDebugInfo;
+        private readonly MethodDebugInfo _methodDebugInfo;
 
         private EvaluationContext(
             ImmutableArray<MetadataBlock> metadataBlocks,
@@ -43,7 +43,7 @@ namespace Microsoft.CodeAnalysis.CSharp.ExpressionEvaluator
             MethodSymbol currentFrame,
             ImmutableArray<LocalSymbol> locals,
             ImmutableSortedSet<int> inScopeHoistedLocalIndices,
-            CustomDebugInfo customDebugInfo)
+            MethodDebugInfo methodDebugInfo)
         {
             Debug.Assert(inScopeHoistedLocalIndices != null);
 
@@ -54,7 +54,7 @@ namespace Microsoft.CodeAnalysis.CSharp.ExpressionEvaluator
             _currentFrame = currentFrame;
             _locals = locals;
             _inScopeHoistedLocalIndices = inScopeHoistedLocalIndices;
-            _customDebugInfo = customDebugInfo;
+            _methodDebugInfo = methodDebugInfo;
         }
 
         /// <summary>
@@ -94,7 +94,7 @@ namespace Microsoft.CodeAnalysis.CSharp.ExpressionEvaluator
                 currentFrame,
                 default(ImmutableArray<LocalSymbol>),
                 ImmutableSortedSet<int>.Empty,
-                default(CustomDebugInfo));
+                default(MethodDebugInfo));
         }
 
         /// <summary>
@@ -148,7 +148,7 @@ namespace Microsoft.CodeAnalysis.CSharp.ExpressionEvaluator
             var dynamicLocalMap = ImmutableDictionary<int, ImmutableArray<bool>>.Empty;
             var dynamicLocalConstantMap = ImmutableDictionary<string, ImmutableArray<bool>>.Empty;
             var inScopeHoistedLocalIndices = ImmutableSortedSet<int>.Empty;
-            var customDebugInfo = default(CustomDebugInfo);
+            var methodDebugInfo = default(MethodDebugInfo);
 
             if (typedSymReader != null)
             {
@@ -173,7 +173,7 @@ namespace Microsoft.CodeAnalysis.CSharp.ExpressionEvaluator
                     }
 
                     // TODO (acasey): switch on the type of typedSymReader and call the appropriate helper. (GH #702)
-                    customDebugInfo = typedSymReader.GetCustomDebugInfo(methodToken, methodVersion);
+                    methodDebugInfo = typedSymReader.GetMethodDebugInfo(methodToken, methodVersion);
                 }
                 catch (InvalidOperationException)
                 {
@@ -202,7 +202,7 @@ namespace Microsoft.CodeAnalysis.CSharp.ExpressionEvaluator
                 currentFrame,
                 locals,
                 inScopeHoistedLocalIndices,
-                customDebugInfo);
+                methodDebugInfo);
         }
 
         internal CompilationContext CreateCompilationContext(CSharpSyntaxNode syntax)
@@ -213,7 +213,7 @@ namespace Microsoft.CodeAnalysis.CSharp.ExpressionEvaluator
                 _currentFrame,
                 _locals,
                 _inScopeHoistedLocalIndices,
-                _customDebugInfo,
+                _methodDebugInfo,
                 syntax);
         }
 

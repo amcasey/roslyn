@@ -47,14 +47,14 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.ExpressionEvaluator
             currentFrame As MethodSymbol,
             locals As ImmutableArray(Of LocalSymbol),
             hoistedLocalFieldNames As ImmutableHashSet(Of String),
-            customDebugInfo As CustomDebugInfo,
+            methodDebugInfo As MethodDebugInfo,
             syntax As ExecutableStatementSyntax)
 
             _syntax = syntax
             _currentFrame = currentFrame
 
             Debug.Assert(compilation.Options.RootNamespace = "") ' Default value.
-            Debug.Assert(customDebugInfo.ExternAliasRecords.IsDefaultOrEmpty)
+            Debug.Assert(methodDebugInfo.ExternAliasRecords.IsDefaultOrEmpty)
 
             Dim originalCompilation = compilation
 
@@ -62,7 +62,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.ExpressionEvaluator
                 compilation = compilation.AddSyntaxTrees(syntax.SyntaxTree)
             End If
 
-            Dim defaultNamespaceName As String = customDebugInfo.DefaultNamespaceName
+            Dim defaultNamespaceName As String = methodDebugInfo.DefaultNamespaceName
             If defaultNamespaceName IsNot Nothing Then
                 compilation = compilation.WithOptions(compilation.Options.WithRootNamespace(defaultNamespaceName))
             End If
@@ -84,7 +84,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.ExpressionEvaluator
                 Me.Compilation,
                 metadataDecoder,
                 currentFrame.ContainingNamespace,
-                customDebugInfo.ImportRecordGroups)
+                methodDebugInfo.ImportRecordGroups)
 
             _voidType = Me.Compilation.GetSpecialType(SpecialType.System_Void)
 

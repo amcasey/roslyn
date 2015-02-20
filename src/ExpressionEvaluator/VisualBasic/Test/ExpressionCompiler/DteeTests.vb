@@ -164,8 +164,8 @@ End Class
                 compModuleInstance2,
                 MscorlibRef.ToModuleInstance(Nothing, Nothing)))
 
-            Dim customDebugInfo = EvaluationContext.SynthesizeCustomDebugInfoForDtee(MakeAssemblyReaders(runtimeInstance))
-            CheckDteeCustomDebugInfo(customDebugInfo, "root1", "root2")
+            Dim methodDebugInfo = EvaluationContext.SynthesizeMethodDebugInfoForDtee(MakeAssemblyReaders(runtimeInstance))
+            CheckDteeMethodDebugInfo(methodDebugInfo, "root1", "root2")
         End Sub
 
         <Fact>
@@ -219,8 +219,8 @@ End Namespace
                 MscorlibRef.ToModuleInstance(Nothing, Nothing),
                 MsvbRef.ToModuleInstance(Nothing, Nothing)))
 
-            Dim customDebugInfo = EvaluationContext.SynthesizeCustomDebugInfoForDtee(MakeAssemblyReaders(runtimeInstance))
-            CheckDteeCustomDebugInfo(customDebugInfo, "N1", "N2.N3", "N5.N6")
+            Dim methodDebugInfo = EvaluationContext.SynthesizeMethodDebugInfoForDtee(MakeAssemblyReaders(runtimeInstance))
+            CheckDteeMethodDebugInfo(methodDebugInfo, "N1", "N2.N3", "N5.N6")
         End Sub
 
         <Fact>
@@ -235,8 +235,8 @@ End Namespace
 
             ' Since there are no methods in the assembly, there is no import custom debug info, so we
             ' have no way to find the root namespace.
-            Dim customDebugInfo = EvaluationContext.SynthesizeCustomDebugInfoForDtee(MakeAssemblyReaders(runtimeInstance))
-            CheckDteeCustomDebugInfo(customDebugInfo)
+            Dim methodDebugInfo = EvaluationContext.SynthesizeMethodDebugInfoForDtee(MakeAssemblyReaders(runtimeInstance))
+            CheckDteeMethodDebugInfo(methodDebugInfo)
         End Sub
 
         <Fact>
@@ -266,8 +266,8 @@ End Namespace
                 MscorlibRef.ToModuleInstance(Nothing, Nothing),
                 MsvbRef.ToModuleInstance(Nothing, Nothing)))
 
-            Dim customDebugInfo = EvaluationContext.SynthesizeCustomDebugInfoForDtee(MakeAssemblyReaders(runtimeInstance))
-            CheckDteeCustomDebugInfo(customDebugInfo, "N2")
+            Dim methodDebugInfo = EvaluationContext.SynthesizeMethodDebugInfoForDtee(MakeAssemblyReaders(runtimeInstance))
+            CheckDteeMethodDebugInfo(methodDebugInfo, "N2")
         End Sub
 
         <Fact>
@@ -318,8 +318,8 @@ End Namespace
                 MscorlibRef.ToModuleInstance(Nothing, Nothing),
                 MsvbRef.ToModuleInstance(Nothing, Nothing)))
 
-            Dim customDebugInfo = EvaluationContext.SynthesizeCustomDebugInfoForDtee(MakeAssemblyReaders(runtimeInstance))
-            CheckDteeCustomDebugInfo(customDebugInfo)
+            Dim methodDebugInfo = EvaluationContext.SynthesizeMethodDebugInfoForDtee(MakeAssemblyReaders(runtimeInstance))
+            CheckDteeMethodDebugInfo(methodDebugInfo)
         End Sub
 
         <Fact>
@@ -351,8 +351,8 @@ End Namespace
                 MscorlibRef.ToModuleInstance(Nothing, Nothing),
                 MsvbRef.ToModuleInstance(Nothing, Nothing)))
 
-            Dim customDebugInfo = EvaluationContext.SynthesizeCustomDebugInfoForDtee(MakeAssemblyReaders(runtimeInstance))
-            CheckDteeCustomDebugInfo(customDebugInfo)
+            Dim methodDebugInfo = EvaluationContext.SynthesizeMethodDebugInfoForDtee(MakeAssemblyReaders(runtimeInstance))
+            CheckDteeMethodDebugInfo(methodDebugInfo)
         End Sub
 
         <Fact>
@@ -383,8 +383,8 @@ End Namespace
                 MscorlibRef.ToModuleInstance(Nothing, Nothing),
                 MsvbRef.ToModuleInstance(Nothing, Nothing)))
 
-            Dim customDebugInfo = EvaluationContext.SynthesizeCustomDebugInfoForDtee(MakeAssemblyReaders(runtimeInstance))
-            CheckDteeCustomDebugInfo(customDebugInfo)
+            Dim methodDebugInfo = EvaluationContext.SynthesizeMethodDebugInfoForDtee(MakeAssemblyReaders(runtimeInstance))
+            CheckDteeMethodDebugInfo(methodDebugInfo)
         End Sub
 
         <Fact>
@@ -495,10 +495,10 @@ End Namespace
             Return compRef.ToModuleInstance(peBytes.ToArray(), New SymReader(pdbBytes.ToArray()))
         End Function
 
-        Private Shared Sub CheckDteeCustomDebugInfo(customDebugInfo As CustomDebugInfo, ParamArray namespaceNames As String())
-            Assert.Equal("", customDebugInfo.DefaultNamespaceName)
+        Private Shared Sub CheckDteeMethodDebugInfo(methodDebugInfo As MethodDebugInfo, ParamArray namespaceNames As String())
+            Assert.Equal("", methodDebugInfo.DefaultNamespaceName)
 
-            Dim importRecordGroups = customDebugInfo.ImportRecordGroups
+            Dim importRecordGroups = methodDebugInfo.ImportRecordGroups
             Assert.Equal(2, importRecordGroups.Length)
             Dim projectLevelImportRecords As ImmutableArray(Of ImportRecord) = importRecordGroups(0)
             Dim fileLevelImportRecords As ImmutableArray(Of ImportRecord) = importRecordGroups(1)

@@ -5,13 +5,13 @@ using System.Diagnostics;
 
 namespace Microsoft.CodeAnalysis.ExpressionEvaluator
 {
-    internal struct CustomDebugInfo
+    internal struct MethodDebugInfo
     {
         public readonly ImmutableArray<ImmutableArray<ImportRecord>> ImportRecordGroups;
         public readonly ImmutableArray<ExternAliasRecord> ExternAliasRecords;
         public readonly string DefaultNamespaceName;
 
-        public CustomDebugInfo(
+        public MethodDebugInfo(
             ImmutableArray<ImmutableArray<ImportRecord>> importRecordGroups,
             ImmutableArray<ExternAliasRecord> externAliasRecords,
             string defaultNamespaceName)

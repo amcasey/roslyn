@@ -149,11 +149,11 @@ End Namespace
             Const importString = "@F:System"
 
             Dim reader As ISymUnmanagedReader = New MockSymUnmanagedReader(
-                            New Dictionary(Of Integer, MethodDebugInfo)() From
+                            New Dictionary(Of Integer, MethodDebugInfoBytes)() From
                             {
-                                {methodToken1, New MethodDebugInfo.Builder({({"@" & methodToken2})}).Build()},
-                                {methodToken2, New MethodDebugInfo.Builder({({"@" & methodToken3})}).Build()},
-                                {methodToken3, New MethodDebugInfo.Builder({({importString})}).Build()}
+                                {methodToken1, New MethodDebugInfoBytes.Builder({({"@" & methodToken2})}).Build()},
+                                {methodToken2, New MethodDebugInfoBytes.Builder({({"@" & methodToken3})}).Build()},
+                                {methodToken3, New MethodDebugInfoBytes.Builder({({importString})}).Build()}
                             }.ToImmutableDictionary())
 
             Dim importStrings = reader.GetVisualBasicImportStrings(methodToken1, methodVersion)
@@ -172,9 +172,9 @@ End Namespace
             Const methodToken1 = &H600057A ' Forwards to itself
 
             Dim reader As ISymUnmanagedReader = New MockSymUnmanagedReader(
-                            New Dictionary(Of Integer, MethodDebugInfo)() From
+                            New Dictionary(Of Integer, MethodDebugInfoBytes)() From
                             {
-                                {methodToken1, New MethodDebugInfo.Builder({({"@" & methodToken1})}).Build()}
+                                {methodToken1, New MethodDebugInfoBytes.Builder({({"@" & methodToken1})}).Build()}
                             }.ToImmutableDictionary())
 
             Dim importStrings = reader.GetVisualBasicImportStrings(methodToken1, methodVersion)
@@ -268,9 +268,9 @@ End Class
             Const importString = "&MyPia"
 
             Dim reader As ISymUnmanagedReader = New MockSymUnmanagedReader(
-                            New Dictionary(Of Integer, MethodDebugInfo)() From
+                            New Dictionary(Of Integer, MethodDebugInfoBytes)() From
                             {
-                                {methodToken, New MethodDebugInfo.Builder({({importString})}).Build()}
+                                {methodToken, New MethodDebugInfoBytes.Builder({({importString})}).Build()}
                             }.ToImmutableDictionary())
 
             Dim importStrings = reader.GetVisualBasicImportStrings(methodToken, methodVersion)
@@ -285,9 +285,9 @@ End Class
             Const importString2 = "$NotSureWhatGoesHere"
 
             Dim reader As ISymUnmanagedReader = New MockSymUnmanagedReader(
-                            New Dictionary(Of Integer, MethodDebugInfo)() From
+                            New Dictionary(Of Integer, MethodDebugInfoBytes)() From
                             {
-                                {methodToken, New MethodDebugInfo.Builder({({importString1, importString2})}).Build()}
+                                {methodToken, New MethodDebugInfoBytes.Builder({({importString1, importString2})}).Build()}
                             }.ToImmutableDictionary())
 
             Dim importStrings = reader.GetVisualBasicImportStrings(methodToken, methodVersion)

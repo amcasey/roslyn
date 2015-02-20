@@ -40,7 +40,7 @@
     <Compile Include="InstructionDecoder.cs" />
     <Compile Include="LanguageInstructionDecoder.cs" />
     <Compile Include="PDB\ExternAliasRecord.cs" />
-    <Compile Include="PDB\CustomDebugInfo.cs" />
+    <Compile Include="PDB\MethodDebugInfo.cs" />
     <Compile Include="PDB\ImportRecord.cs" />
     <Compile Include="PDB\PdbHelpers.cs" />
     <Compile Include="PDB\PortableImportRecord.cs" />

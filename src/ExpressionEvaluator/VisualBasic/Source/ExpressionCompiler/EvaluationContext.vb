@@ -36,7 +36,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.ExpressionEvaluator
         Private ReadOnly _currentFrame As MethodSymbol
         Private ReadOnly _locals As ImmutableArray(Of LocalSymbol)
         Private ReadOnly _hoistedLocalFieldNames As ImmutableHashSet(Of String)
-        Private ReadOnly _customDebugInfo As CustomDebugInfo
+        Private ReadOnly _methodDebugInfo As MethodDebugInfo
 
         Private Sub New(
             metadataBlocks As ImmutableArray(Of MetadataBlock),
@@ -46,7 +46,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.ExpressionEvaluator
             currentFrame As MethodSymbol,
             locals As ImmutableArray(Of LocalSymbol),
             hoistedLocalFieldNames As ImmutableHashSet(Of String),
-            customDebugInfo As CustomDebugInfo)
+            methodDebugInfo As MethodDebugInfo)
 
             Me.MetadataBlocks = metadataBlocks
             Me.MethodScope = methodScope
@@ -55,7 +55,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.ExpressionEvaluator
             _currentFrame = currentFrame
             _locals = locals
             _hoistedLocalFieldNames = hoistedLocalFieldNames
-            _customDebugInfo = customDebugInfo
+            _methodDebugInfo = methodDebugInfo
         End Sub
 
         ''' <summary>
@@ -95,7 +95,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.ExpressionEvaluator
                 currentFrame,
                 locals:=Nothing,
                 hoistedLocalFieldNames:=Nothing,
-                customDebugInfo:=Nothing)
+                methodDebugInfo:=Nothing)
         End Function
 
         ''' <summary>
@@ -155,14 +155,14 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.ExpressionEvaluator
             scopes.Free()
             Dim locals = localBuilder.ToImmutableAndFree()
 
-            Dim customDebugInfo As CustomDebugInfo
+            Dim methodDebugInfo As MethodDebugInfo
             If IsDteeEntryPoint(currentFrame) Then
-                customDebugInfo = SynthesizeCustomDebugInfoForDtee(lazyAssemblyReaders.Value)
+                methodDebugInfo = SynthesizeMethodDebugInfoForDtee(lazyAssemblyReaders.Value)
             ElseIf typedSymReader IsNot Nothing Then
                 ' TODO (acasey): Switch on the type of typedSymReader and call the appropriate helper. (GH #702)
-                customDebugInfo = typedSymReader.GetCustomDebugInfo(methodToken, methodVersion)
+                methodDebugInfo = typedSymReader.GetMethodDebugInfo(methodToken, methodVersion)
             Else
-                customDebugInfo = Nothing
+                methodDebugInfo = Nothing
             End If
 
             Return New EvaluationContext(
@@ -173,7 +173,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.ExpressionEvaluator
                 currentFrame,
                 locals,
                 hoistedLocalFieldNames,
-                customDebugInfo)
+                methodDebugInfo)
         End Function
 
         Private Shared Function GetLocalNames(scopes As ArrayBuilder(Of ISymUnmanagedScope), <Out> ByRef hoistedLocalFieldNames As ImmutableHashSet(Of String)) As ImmutableArray(Of String)
@@ -202,7 +202,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.ExpressionEvaluator
         ''' Logic copied from ProcedureContext::IsDteeEntryPoint.
         ''' Friend for testing.
         ''' </remarks>
-        ''' <seealso cref="SynthesizeCustomDebugInfoForDtee"/>
+        ''' <seealso cref="SynthesizeMethodDebugInfoForDtee"/>
         Friend Shared Function IsDteeEntryPoint(currentFrame As MethodSymbol) As Boolean
             Dim typeName = currentFrame.ContainingType.Name
             Dim methodName = currentFrame.Name
@@ -229,7 +229,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.ExpressionEvaluator
         ''' </remarks>
         ''' <seealso cref="IsDteeEntryPoint"/>
         ''' <seealso cref="PENamedTypeSymbol.TypeKind"/>
-        Friend Shared Function SynthesizeCustomDebugInfoForDtee(assemblyReaders As ImmutableArray(Of AssemblyReaders)) As CustomDebugInfo
+        Friend Shared Function SynthesizeMethodDebugInfoForDtee(assemblyReaders As ImmutableArray(Of AssemblyReaders)) As MethodDebugInfo
             Dim [imports] = PooledHashSet(Of String).GetInstance()
 
             For Each readers In assemblyReaders
@@ -257,7 +257,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.ExpressionEvaluator
 
                     For Each methodDefHandle In metadataReader.MethodDefinitions
                         ' EnC can't change the default namespace of the assembly, so version 1 will suffice.
-                        Dim methodDefaultNamespaceName = symReader.GetCustomDebugInfo(metadataReader.GetToken(methodDefHandle), methodVersion:=1).DefaultNamespaceName
+                        Dim methodDefaultNamespaceName = symReader.GetMethodDebugInfo(metadataReader.GetToken(methodDefHandle), methodVersion:=1).DefaultNamespaceName
 
                         ' Some methods aren't decorated with import custom debug info.
                         If Not String.IsNullOrEmpty(methodDefaultNamespaceName) Then
@@ -283,7 +283,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.ExpressionEvaluator
 
             Dim importRecordGroups = ImmutableArray.Create(projectLevelImportRecords, fileLevelImportRecords)
 
-            Return New CustomDebugInfo(importRecordGroups, ImmutableArray(Of ExternAliasRecord).Empty, defaultNamespaceName:="")
+            Return New MethodDebugInfo(importRecordGroups, ImmutableArray(Of ExternAliasRecord).Empty, defaultNamespaceName:="")
         End Function
 
         Friend Function CreateCompilationContext(syntax As ExecutableStatementSyntax) As CompilationContext
@@ -293,7 +293,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.ExpressionEvaluator
                 _currentFrame,
                 _locals,
                 _hoistedLocalFieldNames,
-                _customDebugInfo,
+                _methodDebugInfo,
                 syntax)
         End Function
 

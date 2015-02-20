@@ -50,10 +50,10 @@ namespace Microsoft.CodeAnalysis.CSharp.ExpressionEvaluator
             MethodSymbol currentFrame,
             ImmutableArray<LocalSymbol> locals,
             ImmutableSortedSet<int> inScopeHoistedLocalIndices,
-            CustomDebugInfo customDebugInfo,
+            MethodDebugInfo methodDebugInfo,
             CSharpSyntaxNode syntax)
         {
-            Debug.Assert(string.IsNullOrEmpty(customDebugInfo.DefaultNamespaceName));
+            Debug.Assert(string.IsNullOrEmpty(methodDebugInfo.DefaultNamespaceName));
             Debug.Assert((syntax == null) || (syntax is ExpressionSyntax) || (syntax is LocalDeclarationStatementSyntax));
 
             // TODO: syntax.SyntaxTree should probably be added to the compilation,
@@ -66,7 +66,7 @@ namespace Microsoft.CodeAnalysis.CSharp.ExpressionEvaluator
             // CONSIDER: The values should be the same everywhere in the module, so they
             // could be cached.  
             // (Catch: what happens in a type context without a method def?)
-            this.Compilation = GetCompilationWithExternAliases(compilation, customDebugInfo.ExternAliasRecords);
+            this.Compilation = GetCompilationWithExternAliases(compilation, methodDebugInfo.ExternAliasRecords);
             _metadataDecoder = metadataDecoder;
 
             // Each expression compile should use a unique compilation
@@ -78,7 +78,7 @@ namespace Microsoft.CodeAnalysis.CSharp.ExpressionEvaluator
                 this.Compilation,
                 (PEModuleSymbol)currentFrame.ContainingModule,
                 currentFrame.ContainingNamespace,
-                customDebugInfo.ImportRecordGroups,
+                methodDebugInfo.ImportRecordGroups,
                 _metadataDecoder);
 
             if (_methodNotType)
@@ -830,8 +830,9 @@ namespace Microsoft.CodeAnalysis.CSharp.ExpressionEvaluator
                     }
                     case ImportTargetKind.Namespace:
                     {
+                        var namespaceName = importRecord.TargetString;
                         NameSyntax targetSyntax;
-                        if (!SyntaxHelpers.TryParseDottedName(importRecord.TargetString, out targetSyntax))
+                        if (!SyntaxHelpers.TryParseDottedName(namespaceName, out targetSyntax))
                         {
                             // DevDiv #999086: Some previous version of VS apparently generated type aliases as "UA{alias} T{alias-qualified type name}". 
                             // Neither Roslyn nor Dev12 parses such imports.  However, Roslyn discards them, rather than interpreting them as "UA{alias}"
@@ -847,7 +848,7 @@ namespace Microsoft.CodeAnalysis.CSharp.ExpressionEvaluator
                             var targetAssembly = portableImportRecord.GetTargetAssembly<ModuleSymbol, AssemblySymbol>(module, module.Module);
                             if ((object)targetAssembly == null)
                             {
-                                namespaceSymbol = BindNamespace(binder, targetSyntax);
+                                namespaceSymbol = BindNamespace(namespaceName, compilation.GlobalNamespace);
                             }
                             else if (targetAssembly.IsMissing)
                             {
@@ -856,24 +857,18 @@ namespace Microsoft.CodeAnalysis.CSharp.ExpressionEvaluator
                             }
                             else
                             {
-                                namespaceSymbol = targetAssembly.GlobalNamespace;
-                                foreach (var name in importRecord.TargetString.Split('.'))
-                                {
-                                    namespaceSymbol = namespaceSymbol.GetMembers(name).SingleOrDefault() as NamespaceSymbol;
-
-                                    if ((object)namespaceSymbol == null)
-                                    {
-                                        break;
-                                    }
-                                }
+                                namespaceSymbol = BindNamespace(namespaceName, targetAssembly.GlobalNamespace);
+                                // TODO (acasey): arguably, we should update targetSyntax
                             }
                         }
                         else
                         {
+                            var globalNamespace = compilation.GlobalNamespace;
+
                             var externAlias = ((NativeImportRecord)importRecord).ExternAlias;
                             if (externAlias != null)
                             {
-                                IdentifierNameSyntax externAliasSyntax;
+                                IdentifierNameSyntax externAliasSyntax = null;
                                 if (!TryParseIdentifierNameSyntax(externAlias, out externAliasSyntax))
                                 {
                                     Debug.WriteLine($"Import record '{importRecord}' has syntactically invalid extern alias '{externAlias}'");
@@ -882,9 +877,19 @@ namespace Microsoft.CodeAnalysis.CSharp.ExpressionEvaluator
 
                                 // This is the case that requires the binder to already know about extern aliases.
                                 targetSyntax = SyntaxHelpers.PrependExternAlias(externAliasSyntax, targetSyntax);
+
+                                var unusedDiagnostics = DiagnosticBag.GetInstance();
+                                globalNamespace = (NamespaceSymbol)binder.BindNamespaceAliasSymbol(externAliasSyntax, unusedDiagnostics);
+                                unusedDiagnostics.Free();
+
+                                if ((object)globalNamespace == null)
+                                {
+                                    Debug.WriteLine($"Import record '{importRecord}' requires unknown extern alias '{externAlias}'");
+                                    continue;
+                                }
                             }
 
-                            namespaceSymbol = BindNamespace(binder, targetSyntax);
+                            namespaceSymbol = BindNamespace(namespaceName, globalNamespace);
                         }
 
                         if ((object)namespaceSymbol == null)
@@ -916,11 +921,21 @@ namespace Microsoft.CodeAnalysis.CSharp.ExpressionEvaluator
             return Imports.FromCustomDebugInfo(binder.Compilation, usingAliases, usingsBuilder.ToImmutableAndFree(), externs);
         }
 
-        private static NamespaceSymbol BindNamespace(InContainerBinder binder, NameSyntax targetSyntax)
+        private static NamespaceSymbol BindNamespace(string namespaceName, NamespaceSymbol globalNamespace)
         {
-            var unusedDiagnostics = DiagnosticBag.GetInstance();
-            var namespaceSymbol = binder.BindNamespaceOrType(targetSyntax, unusedDiagnostics).ExpressionSymbol as NamespaceSymbol;
-            unusedDiagnostics.Free();
+            var namespaceSymbol = globalNamespace;
+            foreach (var name in namespaceName.Split('.'))
+            {
+                var members = namespaceSymbol.GetMembers(name);
+                namespaceSymbol = members.Length == 1
+                        ? members[0] as NamespaceSymbol
+                        : null;
+
+                if ((object)namespaceSymbol == null)
+                {
+                    break;
+                }
+            }
             return namespaceSymbol;
         }
 

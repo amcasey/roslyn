@@ -4,13 +4,14 @@ using System;
 using System.Collections.Immutable;
 using System.Diagnostics;
 using Microsoft.CodeAnalysis.CSharp.Symbols;
+using Microsoft.CodeAnalysis.ExpressionEvaluator;
 using Microsoft.VisualStudio.SymReaderInterop;
 
 namespace Microsoft.CodeAnalysis.CSharp.ExpressionEvaluator
 {
     internal static class SymUnmanagedReaderExtensions
     {
-        public static CustomDebugInfo GetCustomDebugInfo(
+        public static MethodDebugInfo GetMethodDebugInfo(
             this ISymUnmanagedReader reader,
             int methodToken,
             int methodVersion)
@@ -21,7 +22,7 @@ namespace Microsoft.CodeAnalysis.CSharp.ExpressionEvaluator
 
             if (importStringGroups.IsDefault)
             {
-                return default(CustomDebugInfo);
+                return default(MethodDebugInfo);
             }
 
             var importRecordGroupBuilder = ArrayBuilder<ImmutableArray<ImportRecord>>.GetInstance(importStringGroups.Length);
@@ -71,7 +72,7 @@ namespace Microsoft.CodeAnalysis.CSharp.ExpressionEvaluator
                 externAliasRecordBuilder.Add(new NativeExternAliasRecord<AssemblySymbol>(alias, targetIdentity));
             }
 
-            return new CustomDebugInfo(
+            return new MethodDebugInfo(
                 importRecordGroupBuilder.ToImmutableAndFree(),
                 externAliasRecordBuilder.ToImmutableAndFree(),
                 defaultNamespaceName: ""); // Unused in C#.
