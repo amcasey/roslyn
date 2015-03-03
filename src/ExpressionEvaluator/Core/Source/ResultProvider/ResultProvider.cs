@@ -50,7 +50,7 @@ namespace Microsoft.CodeAnalysis.ExpressionEvaluator
                 declaredType,
                 inspectionContext,
                 resultName,
-                result => wl.ContinueWith(() => dkmCompletionRoutine(new DkmEvaluationAsyncResult(result))));
+                result => wl.SetNextAction(() => dkmCompletionRoutine(new DkmEvaluationAsyncResult(result))));
             wl.Execute();
         }
 
@@ -542,18 +542,18 @@ namespace Microsoft.CodeAnalysis.ExpressionEvaluator
                 expansion.GetRows(this, rows, inspectionContext, dataItem, dataItem.Value, 0, initialRequestSize, visitAll: true, index: ref index);
             }
             var numRows = rows.Count;
+            if (numRows == 0) return;
             Debug.Assert(index >= numRows);
             Debug.Assert(initialRequestSize >= numRows);
             var initialChildren = new DkmEvaluationResult[numRows];
             var wl = new WorkList(workList, e => dkmCompletionRoutine(DkmGetChildrenAsyncResult.CreateErrorResult(e)));
             GetEvaluationResultsAndContinue(rows, initialChildren, 0, numRows, wl, inspectionContext, stackFrame,
-                () => wl.ContinueWith(
-                        () =>
-                        {
-                            var enumContext = DkmEvaluationResultEnumContext.Create(index, stackFrame, inspectionContext, new EnumContextDataItem(dataItem));
-                            dkmCompletionRoutine(new DkmGetChildrenAsyncResult(initialChildren, enumContext));
-                            rows.Free();
-                        }));
+                () =>
+                {
+                    var enumContext = DkmEvaluationResultEnumContext.Create(index, stackFrame, inspectionContext, new EnumContextDataItem(dataItem));
+                    dkmCompletionRoutine(new DkmGetChildrenAsyncResult(initialChildren, enumContext));
+                    rows.Free();
+                });
             wl.Execute();
         }
 
@@ -568,55 +568,38 @@ namespace Microsoft.CodeAnalysis.ExpressionEvaluator
                 expansion.GetRows(this, rows, inspectionContext, dataItem, value, startIndex, count, visitAll: false, index: ref index);
             }
             var numRows = rows.Count;
+            if (numRows == 0) return;
             Debug.Assert(count >= numRows);
             var results = new DkmEvaluationResult[numRows];
             var wl = new WorkList(workList, e => dkmCompletionRoutine(DkmEvaluationEnumAsyncResult.CreateErrorResult(e)));
             GetEvaluationResultsAndContinue(rows, results, 0, numRows, wl, inspectionContext, value.StackFrame,
-                () => wl.ContinueWith(
-                        () =>
-                        {
-                            dkmCompletionRoutine(new DkmEvaluationEnumAsyncResult(results));
-                            rows.Free();
-                        }));
+                () =>
+                {
+                    dkmCompletionRoutine(new DkmEvaluationEnumAsyncResult(results));
+                    rows.Free();
+                });
             wl.Execute();
         }
 
-        private void StoreResultAndContinue(DkmEvaluationResult result, ArrayBuilder<EvalResultDataItem> rows, DkmEvaluationResult[] results, int index, int numRows, WorkList workList, DkmInspectionContext inspectionContext, DkmStackWalkFrame stackFrame, Action nextAction)
+        private void StoreResultAndContinue(DkmEvaluationResult result, ArrayBuilder<EvalResultDataItem> rows, DkmEvaluationResult[] results, int index, int numRows, WorkList workList, DkmInspectionContext inspectionContext, DkmStackWalkFrame stackFrame, Action lastAction)
         {
             results[index] = result;
             index++;
-            if (index < numRows)
+            if (index >= numRows)
             {
-                workList.ContinueWith(() => GetEvaluationResultsAndContinue(rows, results, index, numRows, workList, inspectionContext, stackFrame, nextAction));
+                workList.SetNextAction(lastAction);
             }
             else
             {
-                nextAction();
+                workList.SetNextAction(() => GetEvaluationResultsAndContinue(rows, results, index, numRows, workList, inspectionContext, stackFrame, lastAction));
             }
         }
 
-        private void GetEvaluationResultsAndContinue(ArrayBuilder<EvalResultDataItem> rows, DkmEvaluationResult[] results, int index, int numRows, WorkList workList, DkmInspectionContext inspectionContext, DkmStackWalkFrame stackFrame, Action nextAction)
+        private void GetEvaluationResultsAndContinue(ArrayBuilder<EvalResultDataItem> rows, DkmEvaluationResult[] results, int index, int numRows, WorkList workList, DkmInspectionContext inspectionContext, DkmStackWalkFrame stackFrame, Action lastAction)
         {
-            if (index >= numRows)
-            {
-                nextAction();
-            }
-            else
-            {
-                CreateEvaluationResultAndContinue(rows[index], workList, inspectionContext, stackFrame,
-                    result => ContinueWithExceptionHandling(
-                        () => StoreResultAndContinue(result, rows, results, index, numRows, workList, inspectionContext, stackFrame, nextAction),
-                        e =>
-                        {
-                            // If we fail to store a result, just stop enumerating rows (rather than attempting to store
-                            // an error message in the current row, etc).  This is because it may have been the act of
-                            // indexing into the results store that threw (so it would just throw again here).  The user
-                            // experience is less than ideal (there's no real indication that something went wrong),
-                            // however, it seems like it's better to enumerate/display some rows than none.  We will
-                            // receive a non-fatal Watson report in this case, so the problem won't go unnoticed.
-                            nextAction();
-                        }));
-            }
+            Debug.Assert(index < numRows);
+            CreateEvaluationResultAndContinue(rows[index], workList, inspectionContext, stackFrame,
+                result => StoreResultAndContinue(result, rows, results, index, numRows, workList, inspectionContext, stackFrame, lastAction));
         }
 
         internal Expansion GetTypeExpansion(DkmInspectionContext inspectionContext, Type declaredType, DkmClrValue value, ExpansionFlags flags)
@@ -704,7 +687,7 @@ namespace Microsoft.CodeAnalysis.ExpressionEvaluator
                 _exceptionCompletionRoutine = exceptionCompletionRoutine;
             }
 
-            internal void ContinueWith(Action nextAction)
+            internal void SetNextAction(Action nextAction)
             {
                 Debug.Assert(_nextAction == null);
                 _nextAction = nextAction;
