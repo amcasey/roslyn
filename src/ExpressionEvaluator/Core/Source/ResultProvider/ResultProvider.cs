@@ -16,8 +16,9 @@ using Type = Microsoft.VisualStudio.Debugger.Metadata.Type;
 
 namespace Microsoft.CodeAnalysis.ExpressionEvaluator
 {
-    internal delegate void CompletionRoutine();
-    internal delegate void CompletionRoutine<TResult>(TResult result);
+    internal delegate void Action();
+    internal delegate void ExceptionCompletionRoutine(Exception exception);
+    internal delegate void SuccessCompletionRoutine(DkmEvaluationResult result);
 
     /// <summary>
     /// Computes expansion of <see cref="DkmClrValue"/> instances.
@@ -39,17 +40,17 @@ namespace Microsoft.CodeAnalysis.ExpressionEvaluator
             this.Formatter = formatter;
         }
 
-        void IDkmClrResultProvider.GetResult(DkmClrValue value, DkmWorkList workList, DkmClrType declaredType, DkmInspectionContext inspectionContext, ReadOnlyCollection<string> formatSpecifiers, string resultName, string resultFullName, DkmCompletionRoutine<DkmEvaluationAsyncResult> completionRoutine)
+        void IDkmClrResultProvider.GetResult(DkmClrValue value, DkmWorkList workList, DkmClrType declaredType, DkmInspectionContext inspectionContext, ReadOnlyCollection<string> formatSpecifiers, string resultName, string resultFullName, DkmCompletionRoutine<DkmEvaluationAsyncResult> dkmCompletionRoutine)
         {
             // TODO: Use full name
-            var wl = new WorkList(workList, e => completionRoutine(DkmEvaluationAsyncResult.CreateErrorResult(e)));
+            var wl = new WorkList(workList, e => dkmCompletionRoutine(DkmEvaluationAsyncResult.CreateErrorResult(e)));
             GetRootResultAndContinue(
                 value,
                 wl,
                 declaredType,
                 inspectionContext,
                 resultName,
-                result => wl.ContinueWith(_ => completionRoutine(new DkmEvaluationAsyncResult(result))));
+                result => wl.ContinueWith(_ => dkmCompletionRoutine(new DkmEvaluationAsyncResult(result))));
             wl.Execute();
         }
 
@@ -71,31 +72,31 @@ namespace Microsoft.CodeAnalysis.ExpressionEvaluator
             }
         }
 
-        void IDkmClrResultProvider.GetChildren(DkmEvaluationResult evaluationResult, DkmWorkList workList, int initialRequestSize, DkmInspectionContext inspectionContext, DkmCompletionRoutine<DkmGetChildrenAsyncResult> completionRoutine)
+        void IDkmClrResultProvider.GetChildren(DkmEvaluationResult evaluationResult, DkmWorkList workList, int initialRequestSize, DkmInspectionContext inspectionContext, DkmCompletionRoutine<DkmGetChildrenAsyncResult> dkmCompletionRoutine)
         {
             var dataItem = evaluationResult.GetDataItem<EvalResultDataItem>();
             if (dataItem == null)
             {
                 // We don't know about this result.  Call next implementation
-                evaluationResult.GetChildren(workList, initialRequestSize, inspectionContext, completionRoutine);
+                evaluationResult.GetChildren(workList, initialRequestSize, inspectionContext, dkmCompletionRoutine);
                 return;
             }
 
             var stackFrame = evaluationResult.StackFrame;
-            GetChildrenAndContinue(dataItem, workList, stackFrame, initialRequestSize, inspectionContext, completionRoutine);
+            GetChildrenAndContinue(dataItem, workList, stackFrame, initialRequestSize, inspectionContext, dkmCompletionRoutine);
         }
 
-        void IDkmClrResultProvider.GetItems(DkmEvaluationResultEnumContext enumContext, DkmWorkList workList, int startIndex, int count, DkmCompletionRoutine<DkmEvaluationEnumAsyncResult> completionRoutine)
+        void IDkmClrResultProvider.GetItems(DkmEvaluationResultEnumContext enumContext, DkmWorkList workList, int startIndex, int count, DkmCompletionRoutine<DkmEvaluationEnumAsyncResult> dkmCompletionRoutine)
         {
             var dataItem = enumContext.GetDataItem<EnumContextDataItem>();
             if (dataItem == null)
             {
                 // We don't know about this result.  Call next implementation
-                enumContext.GetItems(workList, startIndex, count, completionRoutine);
+                enumContext.GetItems(workList, startIndex, count, dkmCompletionRoutine);
                 return;
             }
 
-            GetItemsAndContinue(dataItem.EvalResultDataItem, workList, startIndex, count, enumContext.InspectionContext, completionRoutine);
+            GetItemsAndContinue(dataItem.EvalResultDataItem, workList, startIndex, count, enumContext.InspectionContext, dkmCompletionRoutine);
         }
 
         string IDkmClrResultProvider.GetUnderlyingString(DkmEvaluationResult result)
@@ -117,12 +118,12 @@ namespace Microsoft.CodeAnalysis.ExpressionEvaluator
             }
         }
 
-        private void CreateEvaluationResultAndContinue(EvalResultDataItem dataItem, WorkList workList, DkmInspectionContext inspectionContext, DkmStackWalkFrame stackFrame, CompletionRoutine<DkmEvaluationResult> completionRoutine)
+        private void CreateEvaluationResultAndContinue(EvalResultDataItem dataItem, WorkList workList, DkmInspectionContext inspectionContext, DkmStackWalkFrame stackFrame, SuccessCompletionRoutine successCompletionRoutine)
         {
             switch (dataItem.Kind)
             {
                 case ExpansionKind.Error:
-                    completionRoutine(DkmFailedEvaluationResult.Create(
+                    successCompletionRoutine(DkmFailedEvaluationResult.Create(
                         inspectionContext,
                         StackFrame: stackFrame,
                         Name: dataItem.Name,
@@ -134,7 +135,7 @@ namespace Microsoft.CodeAnalysis.ExpressionEvaluator
                     break;
                 case ExpansionKind.NonPublicMembers:
                 case ExpansionKind.StaticMembers:
-                    completionRoutine(CreateEvaluationResult(
+                    successCompletionRoutine(CreateEvaluationResult(
                         inspectionContext,
                         dataItem.Value,
                         dataItem.Name,
@@ -143,7 +144,7 @@ namespace Microsoft.CodeAnalysis.ExpressionEvaluator
                         dataItem: dataItem));
                     break;
                 case ExpansionKind.RawView:
-                    completionRoutine(CreateEvaluationResult(
+                    successCompletionRoutine(CreateEvaluationResult(
                         inspectionContext,
                         dataItem.Value,
                         Resources.RawView,
@@ -152,7 +153,7 @@ namespace Microsoft.CodeAnalysis.ExpressionEvaluator
                         dataItem: dataItem));
                     break;
                 case ExpansionKind.ResultsView:
-                    completionRoutine(CreateEvaluationResult(
+                    successCompletionRoutine(CreateEvaluationResult(
                         inspectionContext,
                         dataItem.Value,
                         dataItem.Name,
@@ -162,7 +163,7 @@ namespace Microsoft.CodeAnalysis.ExpressionEvaluator
                     break;
                 case ExpansionKind.TypeVariables:
                     var value = dataItem.Value;
-                    completionRoutine(DkmSuccessEvaluationResult.Create(
+                    successCompletionRoutine(DkmSuccessEvaluationResult.Create(
                         inspectionContext,
                         stackFrame,
                         dataItem.Name,
@@ -189,7 +190,7 @@ namespace Microsoft.CodeAnalysis.ExpressionEvaluator
                         declaredType: DkmClrType.Create(dataItem.Value.Type.AppDomain, dataItem.DeclaredType),
                         inspectionContext: inspectionContext,
                         parent: dataItem.Parent,
-                        completionRoutine: completionRoutine);
+                        successCompletionRoutine: successCompletionRoutine);
                     break;
             }
         }
@@ -364,7 +365,7 @@ namespace Microsoft.CodeAnalysis.ExpressionEvaluator
                 inspectionContext: inspectionContext);
         }
 
-        private void GetRootResultAndContinue(DkmClrValue value, WorkList workList, DkmClrType declaredType, DkmInspectionContext inspectionContext, string resultName, CompletionRoutine<DkmEvaluationResult> completionRoutine)
+        private void GetRootResultAndContinue(DkmClrValue value, WorkList workList, DkmClrType declaredType, DkmInspectionContext inspectionContext, string resultName, SuccessCompletionRoutine successCompletionRoutine)
         {
             var type = value.Type.GetLmrType();
             if (type.IsTypeVariables())
@@ -392,7 +393,7 @@ namespace Microsoft.CodeAnalysis.ExpressionEvaluator
 
                 // Note: We're not including value.EvalFlags in Flags parameter
                 // below (there shouldn't be a reason to do so).
-                completionRoutine(DkmSuccessEvaluationResult.Create(
+                successCompletionRoutine(DkmSuccessEvaluationResult.Create(
                     InspectionContext: inspectionContext,
                     StackFrame: value.StackFrame,
                     Name: Resources.TypeVariablesName,
@@ -419,7 +420,7 @@ namespace Microsoft.CodeAnalysis.ExpressionEvaluator
                         workList,
                         inspectionContext,
                         value.StackFrame,
-                        completionRoutine);
+                        successCompletionRoutine);
                 }
                 else
                 {
@@ -439,12 +440,12 @@ namespace Microsoft.CodeAnalysis.ExpressionEvaluator
                         category: DkmEvaluationResultCategory.Other,
                         flags: value.EvalFlags,
                         evalFlags: inspectionContext.EvaluationFlags);
-                    GetResultAndContinue(dataItem, workList, declaredType, inspectionContext, parent: null, completionRoutine: completionRoutine);
+                    GetResultAndContinue(dataItem, workList, declaredType, inspectionContext, parent: null, successCompletionRoutine: successCompletionRoutine);
                 }
             }
         }
 
-        private void GetResultAndContinue(EvalResultDataItem dataItem, WorkList workList, DkmClrType declaredType, DkmInspectionContext inspectionContext, EvalResultDataItem parent, CompletionRoutine<DkmEvaluationResult> completionRoutine)
+        private void GetResultAndContinue(EvalResultDataItem dataItem, WorkList workList, DkmClrType declaredType, DkmInspectionContext inspectionContext, EvalResultDataItem parent, SuccessCompletionRoutine successCompletionRoutine)
         {
             var value = dataItem.Value; // Value may have been replaced (specifically, for Nullable<T>).
             DebuggerDisplayInfo displayInfo;
@@ -452,8 +453,8 @@ namespace Microsoft.CodeAnalysis.ExpressionEvaluator
             {
                 var targetType = displayInfo.TargetType;
                 var attribute = displayInfo.Attribute;
-                CompletionRoutine<Exception> onException =
-                    e => completionRoutine(CreateEvaluationResultFromException(e, dataItem, inspectionContext));
+                ExceptionCompletionRoutine exceptionCompletionRoutine =
+                    e => successCompletionRoutine(CreateEvaluationResultFromException(e, dataItem, inspectionContext));
 
                 value.EvaluateDebuggerDisplayStringAndContinue(workList.InnerWorkList, inspectionContext, targetType, attribute.Name,
                     displayName => ContinueWithExceptionHandling(
@@ -463,16 +464,16 @@ namespace Microsoft.CodeAnalysis.ExpressionEvaluator
                                             displayType => ContinueWithExceptionHandling(
                                                 () =>
                                                 {
-                                                    completionRoutine(GetResult(inspectionContext, dataItem, declaredType, displayName.Result, displayValue.Result, displayType.Result, parent));
+                                                    successCompletionRoutine(GetResult(inspectionContext, dataItem, declaredType, displayName.Result, displayValue.Result, displayType.Result, parent));
                                                     workList.Execute();
                                                 },
-                                                onException)),
-                                    onException)),
-                        onException));
+                                                exceptionCompletionRoutine)),
+                                    exceptionCompletionRoutine)),
+                        exceptionCompletionRoutine));
             }
             else
             {
-                completionRoutine(GetResult(inspectionContext, dataItem, declaredType, displayName: null, displayValue: null, displayType: null, parent: parent));
+                successCompletionRoutine(GetResult(inspectionContext, dataItem, declaredType, displayName: null, displayValue: null, displayType: null, parent: parent));
             }
         }
 
@@ -531,7 +532,7 @@ namespace Microsoft.CodeAnalysis.ExpressionEvaluator
             return CreateEvaluationResult(inspectionContext, value, name, typeName, display, dataItem);
         }
 
-        private void GetChildrenAndContinue(EvalResultDataItem dataItem, DkmWorkList workList, DkmStackWalkFrame stackFrame, int initialRequestSize, DkmInspectionContext inspectionContext, DkmCompletionRoutine<DkmGetChildrenAsyncResult> completionRoutine)
+        private void GetChildrenAndContinue(EvalResultDataItem dataItem, DkmWorkList workList, DkmStackWalkFrame stackFrame, int initialRequestSize, DkmInspectionContext inspectionContext, DkmCompletionRoutine<DkmGetChildrenAsyncResult> dkmCompletionRoutine)
         {
             var expansion = dataItem.Expansion;
             var rows = ArrayBuilder<EvalResultDataItem>.GetInstance();
@@ -544,19 +545,19 @@ namespace Microsoft.CodeAnalysis.ExpressionEvaluator
             Debug.Assert(index >= numRows);
             Debug.Assert(initialRequestSize >= numRows);
             var initialChildren = new DkmEvaluationResult[numRows];
-            var wl = new WorkList(workList, e => completionRoutine(DkmGetChildrenAsyncResult.CreateErrorResult(e)));
+            var wl = new WorkList(workList, e => dkmCompletionRoutine(DkmGetChildrenAsyncResult.CreateErrorResult(e)));
             GetEvaluationResultsAndContinue(rows, initialChildren, 0, numRows, wl, inspectionContext, stackFrame,
                 _1 => wl.ContinueWith(
                         _2 =>
                         {
                             var enumContext = DkmEvaluationResultEnumContext.Create(index, stackFrame, inspectionContext, new EnumContextDataItem(dataItem));
-                            completionRoutine(new DkmGetChildrenAsyncResult(initialChildren, enumContext));
+                            dkmCompletionRoutine(new DkmGetChildrenAsyncResult(initialChildren, enumContext));
                             rows.Free();
                         }));
             wl.Execute();
         }
 
-        private void GetItemsAndContinue(EvalResultDataItem dataItem, DkmWorkList workList, int startIndex, int count, DkmInspectionContext inspectionContext, DkmCompletionRoutine<DkmEvaluationEnumAsyncResult> completionRoutine)
+        private void GetItemsAndContinue(EvalResultDataItem dataItem, DkmWorkList workList, int startIndex, int count, DkmInspectionContext inspectionContext, DkmCompletionRoutine<DkmEvaluationEnumAsyncResult> dkmCompletionRoutine)
         {
             var expansion = dataItem.Expansion;
             var value = dataItem.Value;
@@ -569,42 +570,42 @@ namespace Microsoft.CodeAnalysis.ExpressionEvaluator
             var numRows = rows.Count;
             Debug.Assert(count >= numRows);
             var results = new DkmEvaluationResult[numRows];
-            var wl = new WorkList(workList, e => completionRoutine(DkmEvaluationEnumAsyncResult.CreateErrorResult(e)));
+            var wl = new WorkList(workList, e => dkmCompletionRoutine(DkmEvaluationEnumAsyncResult.CreateErrorResult(e)));
             GetEvaluationResultsAndContinue(rows, results, 0, numRows, wl, inspectionContext, value.StackFrame,
                 _1 => wl.ContinueWith(
                         _2 =>
                         {
-                            completionRoutine(new DkmEvaluationEnumAsyncResult(results));
+                            dkmCompletionRoutine(new DkmEvaluationEnumAsyncResult(results));
                             rows.Free();
                         }));
             wl.Execute();
         }
 
-        private void StoreResultAndContinue(DkmEvaluationResult result, ArrayBuilder<EvalResultDataItem> rows, DkmEvaluationResult[] results, int index, int numRows, WorkList workList, DkmInspectionContext inspectionContext, DkmStackWalkFrame stackFrame, CompletionRoutine<WorkList> completionRoutine)
+        private void StoreResultAndContinue(DkmEvaluationResult result, ArrayBuilder<EvalResultDataItem> rows, DkmEvaluationResult[] results, int index, int numRows, WorkList workList, DkmInspectionContext inspectionContext, DkmStackWalkFrame stackFrame, WorkListCompletionRoutine workListCompletionRoutine)
         {
             results[index] = result;
             index++;
             if (index < numRows)
             {
-                workList.ContinueWith(wl => GetEvaluationResultsAndContinue(rows, results, index, numRows, wl, inspectionContext, stackFrame, completionRoutine));
+                workList.ContinueWith(wl => GetEvaluationResultsAndContinue(rows, results, index, numRows, wl, inspectionContext, stackFrame, workListCompletionRoutine));
             }
             else
             {
-                completionRoutine(workList);
+                workListCompletionRoutine(workList);
             }
         }
 
-        private void GetEvaluationResultsAndContinue(ArrayBuilder<EvalResultDataItem> rows, DkmEvaluationResult[] results, int index, int numRows, WorkList workList, DkmInspectionContext inspectionContext, DkmStackWalkFrame stackFrame, CompletionRoutine<WorkList> completionRoutine)
+        private void GetEvaluationResultsAndContinue(ArrayBuilder<EvalResultDataItem> rows, DkmEvaluationResult[] results, int index, int numRows, WorkList workList, DkmInspectionContext inspectionContext, DkmStackWalkFrame stackFrame, WorkListCompletionRoutine workListCompletionRoutine)
         {
             if (index >= numRows)
             {
-                completionRoutine(workList);
+                workListCompletionRoutine(workList);
             }
             else
             {
                 CreateEvaluationResultAndContinue(rows[index], workList, inspectionContext, stackFrame,
                     result => ContinueWithExceptionHandling(
-                        () => StoreResultAndContinue(result, rows, results, index, numRows, workList, inspectionContext, stackFrame, completionRoutine),
+                        () => StoreResultAndContinue(result, rows, results, index, numRows, workList, inspectionContext, stackFrame, workListCompletionRoutine),
                         e =>
                         {
                             // If we fail to store a result, just stop enumerating rows (rather than attempting to store
@@ -613,7 +614,7 @@ namespace Microsoft.CodeAnalysis.ExpressionEvaluator
                             // experience is less than ideal (there's no real indication that something went wrong),
                             // however, it seems like it's better to enumerate/display some rows than none.  We will
                             // receive a non-fatal Watson report in this case, so the problem won't go unnoticed.
-                            completionRoutine(workList);
+                            workListCompletionRoutine(workList);
                         }));
             }
         }
@@ -678,7 +679,7 @@ namespace Microsoft.CodeAnalysis.ExpressionEvaluator
                 DataItem: null);
         }
 
-        private static void ContinueWithExceptionHandling(CompletionRoutine onCompleted, CompletionRoutine<Exception> onException)
+        private static void ContinueWithExceptionHandling(Action onCompleted, ExceptionCompletionRoutine exceptionCompletionRoutine)
         {
             try
             {
@@ -686,7 +687,7 @@ namespace Microsoft.CodeAnalysis.ExpressionEvaluator
             }
             catch (Exception e) when (ExpressionEvaluatorFatalError.ReportNonFatalException(e, DkmComponentManager.ReportCurrentNonFatalException))
             {
-                onException(e);
+                exceptionCompletionRoutine(e);
             }
         }
 
@@ -695,34 +696,34 @@ namespace Microsoft.CodeAnalysis.ExpressionEvaluator
         private sealed class WorkList
         {
             internal readonly DkmWorkList InnerWorkList;
-            private readonly CompletionRoutine<Exception> _onException;
-            private WorkListCompletionRoutine _completionRoutine;
+            private readonly ExceptionCompletionRoutine _exceptionCompletionRoutine;
+            private WorkListCompletionRoutine _workListCompletionRoutine;
 
-            internal WorkList(DkmWorkList workList, CompletionRoutine<Exception> onException)
+            internal WorkList(DkmWorkList workList, ExceptionCompletionRoutine exceptionCompletionRoutine)
             {
                 InnerWorkList = workList;
-                _onException = onException;
+                _exceptionCompletionRoutine = exceptionCompletionRoutine;
             }
 
-            internal void ContinueWith(WorkListCompletionRoutine completionRoutine)
+            internal void ContinueWith(WorkListCompletionRoutine workListCompletionRoutine)
             {
-                Debug.Assert(_completionRoutine == null);
-                _completionRoutine = completionRoutine;
+                Debug.Assert(_workListCompletionRoutine == null);
+                _workListCompletionRoutine = workListCompletionRoutine;
             }
 
             internal void Execute()
             {
-                while (_completionRoutine != null)
+                while (_workListCompletionRoutine != null)
                 {
-                    var completionRoutine = _completionRoutine;
-                    _completionRoutine = null;
+                    var workListCompletionRoutine = _workListCompletionRoutine;
+                    _workListCompletionRoutine = null;
                     try
                     {
-                        completionRoutine(this);
+                        workListCompletionRoutine(this);
                     }
                     catch (Exception e) when (ExpressionEvaluatorFatalError.ReportNonFatalException(e, DkmComponentManager.ReportCurrentNonFatalException))
                     {
-                        _onException(e);
+                        _exceptionCompletionRoutine(e);
                     }
                 }
             }
