@@ -932,27 +932,8 @@ namespace Microsoft.VisualStudio.LanguageServices.Implementation.EditAndContinue
                     Interop.IENCDebugInfo debugInfo;
                     updater.GetENCDebugInfo(out debugInfo);
 
-#if TODO // bug 779679: If we use a SymReader provided by the debugger the DPB may stay locked even after the debug session ends.
-                try
-                {
                     var symbolReaderProvider = (Interop.IENCSymbolReaderProvider)debugInfo;
-                    symbolReaderProvider.GetSymbolReader(out this.pdbReaderObj);
-                }
-                catch (InvalidCastException) // bug 775251
-                {
-#endif
-                    try
-                    {
-                        string pdbPath = Path.ChangeExtension(_vsProject.TryGetObjOutputPath(), ".pdb");
-                        _pdbImage = File.ReadAllBytes(pdbPath);
-                    }
-                    catch (Exception)
-                    {
-                        return VSConstants.E_FAIL;
-                    }
-#if TODO
-                }
-#endif
+                    symbolReaderProvider.GetSymbolReader(out _pdbReaderObj);
 
                     _committedBaseline = EmitBaseline.CreateInitialBaseline(_metadata, GetBaselineEncDebugInfo);
                 }
@@ -1071,7 +1052,7 @@ namespace Microsoft.VisualStudio.LanguageServices.Implementation.EditAndContinue
             {
                 if (_pdbReaderObj != null)
                 {
-                    _pdbReader = (ISymUnmanagedReader)_pdbReaderObj;
+                    _pdbReader = (ISymUnmanagedReader)_pdbReaderObj; // TODO (DevDiv #1145183): This cast should succeed.
                 }
                 else
                 {
