@@ -929,13 +929,17 @@ namespace Microsoft.VisualStudio.LanguageServices.Implementation.EditAndContinue
                 var updater = (Interop.IDebugUpdateInMemoryPE2)pUpdatePE;
                 if (_committedBaseline == null)
                 {
-                    Interop.IENCDebugInfo debugInfo;
-                    updater.GetENCDebugInfo(out debugInfo);
+                    _committedBaseline = EmitBaseline.CreateInitialBaseline(_metadata, methodHandle =>
+                    {
+                        Interop.IENCDebugInfo debugInfo;
+                        updater.GetENCDebugInfo(out debugInfo);
 
-                    var symbolReaderProvider = (Interop.IENCSymbolReaderProvider)debugInfo;
-                    symbolReaderProvider.GetSymbolReader(out _pdbReaderObj);
+                        var symbolReaderProvider = (Interop.IENCSymbolReaderProvider)debugInfo;
+                        symbolReaderProvider.GetSymbolReader(out _pdbReaderObj);
 
-                    _committedBaseline = EmitBaseline.CreateInitialBaseline(_metadata, GetBaselineEncDebugInfo);
+                        return GetBaselineEncDebugInfo(methodHandle);
+                    });
+
                 }
 
                 // ISymUnmanagedReader can only be accessed from an MTA thread, 
