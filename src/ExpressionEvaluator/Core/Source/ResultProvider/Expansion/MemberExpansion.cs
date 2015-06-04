@@ -480,7 +480,7 @@ namespace Microsoft.CodeAnalysis.ExpressionEvaluator
                     {
                         return null; // FullName wouldn't be parseable.
                     }
-                    qualifier = formatter.GetTypeName(typeDeclaringMemberAndInfo, escapeKeywordIdentifiers: false);
+                    qualifier = formatter.GetTypeName(typeDeclaringMemberAndInfo, escapeKeywordIdentifiers: true);
                 }
                 else if (memberAccessRequiresExplicitCast)
                 {
