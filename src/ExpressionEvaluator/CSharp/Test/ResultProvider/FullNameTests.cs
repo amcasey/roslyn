@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft.  All Rights Reserved.  Licensed under the Apache License, Version 2.0.  See License.txt in the project root for license information.
 
+using System.Collections.Immutable;
 using System.Linq;
+using Microsoft.CodeAnalysis.CSharp.Test.Utilities;
 using Microsoft.CodeAnalysis.ExpressionEvaluator;
 using Microsoft.VisualStudio.Debugger.Clr;
 using Microsoft.VisualStudio.Debugger.Evaluation;
@@ -293,12 +295,89 @@ public class @struct
             var value = CreateDkmClrValue(assembly.GetType("struct").Instantiate());
 
             var root = FormatResult("o", value);
-            Verify(GetChildren(root),
+            var children = GetChildren(root);
+            Verify(children,
                 EvalResult("Static members", null, "", "@struct", DkmEvaluationResultFlags.Expandable | DkmEvaluationResultFlags.ReadOnly, DkmEvaluationResultCategory.Class));
+            Verify(GetChildren(children.Single()),
+                EvalResult("@true", "0", "int", "@struct.@true", DkmEvaluationResultFlags.None, DkmEvaluationResultCategory.Data, DkmEvaluationResultAccessType.Public));
         }
 
         [Fact]
         public void Keywords_ExplicitInterfaceImplementation()
+        {
+            var source = @"
+namespace @namespace
+{
+    public interface @interface<T>
+    {
+        int @return { get; set; }
+    }
+
+    public class @class : @interface<@class>
+    {
+        int @interface<@class>.@return { get; set; }
+    }
+}
+";
+            var assembly = GetAssembly(source);
+            var value = CreateDkmClrValue(assembly.GetType("namespace.class").Instantiate());
+
+            var root = FormatResult("instance", value);
+            Verify(GetChildren(root),
+                EvalResult("@namespace.@interface<@namespace.@class>.@return", "0", "int", "((@namespace.@interface<@namespace.@class>)instance).@return"));
+        }
+
+        [Fact]
+        public void MangledNames_MemberAccess()
+        {
+            var source = @"
+public class @struct
+{
+    public int @true;
+}
+";
+            var assembly = GetAssembly(source);
+            var value = CreateDkmClrValue(assembly.GetType("struct").Instantiate());
+
+            var root = FormatResult("o", value);
+            Verify(GetChildren(root),
+                EvalResult("@true", "0", "int", "o.@true"));
+        }
+
+        [Fact]
+        public void MangledNames_StaticMembers()
+        {
+            var il = @"
+.class public auto ansi beforefieldinit '<>Mangled' extends [mscorlib]System.Object
+{
+  .field public static int32 x
+
+  .method public hidebysig specialname rtspecialname instance void  .ctor() cil managed
+  {
+    ldarg.0
+    call       instance void [mscorlib]System.Object::.ctor()
+    ret
+  }
+}
+";
+
+            ImmutableArray<byte> assemblyBytes;
+            ImmutableArray<byte> pdbBytes;
+            CSharpTestBase.EmitILToArray(il, appendDefaultHeader: true, includePdb: false, assemblyBytes: out assemblyBytes, pdbBytes: out pdbBytes);
+            var assembly = ReflectionUtilities.Load(assemblyBytes);
+
+            var value = CreateDkmClrValue(assembly.GetType("<>Mangled").Instantiate());
+
+            var root = FormatResult("o", value);
+            var children = GetChildren(root);
+            Verify(children,
+                EvalResult("Static members", null, "", "<>Mangled", DkmEvaluationResultFlags.Expandable | DkmEvaluationResultFlags.ReadOnly, DkmEvaluationResultCategory.Class));
+            Verify(GetChildren(children.Single()),
+                EvalResult("x", "0", "int", null, DkmEvaluationResultFlags.None, DkmEvaluationResultCategory.Data, DkmEvaluationResultAccessType.Public));
+        }
+
+        [Fact]
+        public void MangledNames_ExplicitInterfaceImplementation()
         {
             var source = @"
 namespace @namespace

@@ -212,6 +212,7 @@ namespace Microsoft.CodeAnalysis.ExpressionEvaluator
             Debug.Assert(parent != null);
             var proxyTypeAndInfo = new TypeAndCustomInfo(_proxyValue.Type);
             var fullName = parent.ChildFullNamePrefix;
+            Debug.Assert(fullName == null || !formatter.HasMangledName(proxyTypeAndInfo));
             var childFullNamePrefix = (fullName == null) ?
                 null :
                 formatter.GetObjectCreationExpression(formatter.GetTypeName(proxyTypeAndInfo, escapeKeywordIdentifiers: true), fullName);

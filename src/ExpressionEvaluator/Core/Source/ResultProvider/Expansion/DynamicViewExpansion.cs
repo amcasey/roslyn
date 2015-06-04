@@ -90,6 +90,7 @@ namespace Microsoft.CodeAnalysis.ExpressionEvaluator
             var isRootExpression = parent == null;
             Debug.Assert(isRootExpression != (name == Resources.DynamicView));
             var fullName = (!isRootExpression) ? parent.ChildFullNamePrefix : name;
+            Debug.Assert(fullName == null || !formatter.HasMangledName(proxyTypeAndInfo));
             var childFullNamePrefix = (fullName == null) ?
                 null :
                 formatter.GetObjectCreationExpression(formatter.GetTypeName(proxyTypeAndInfo, escapeKeywordIdentifiers: true), fullName);

@@ -382,7 +382,9 @@ namespace Microsoft.CodeAnalysis.ExpressionEvaluator
                 Expansion expansion)
             {
                 var formatter = resultProvider.Formatter;
-                var fullName = formatter.GetTypeName(declaredTypeAndInfo, escapeKeywordIdentifiers: true);
+                var fullName = formatter.HasMangledName(declaredTypeAndInfo)
+                    ? null
+                    : formatter.GetTypeName(declaredTypeAndInfo, escapeKeywordIdentifiers: true);
                 return new EvalResultDataItem(
                     ExpansionKind.StaticMembers,
                     name: formatter.StaticMembersString,
