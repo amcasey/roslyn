@@ -4,7 +4,6 @@ using System;
 using System.Diagnostics;
 using System.Text;
 using Microsoft.CodeAnalysis.Collections;
-using Microsoft.VisualStudio.Debugger.Evaluation.ClrCompilation;
 using Type = Microsoft.VisualStudio.Debugger.Metadata.Type;
 
 namespace Microsoft.CodeAnalysis.ExpressionEvaluator
@@ -27,6 +26,24 @@ namespace Microsoft.CodeAnalysis.ExpressionEvaluator
             var pooled = PooledStringBuilder.GetInstance();
             AppendQualifiedTypeName(pooled.Builder, type, dynamicFlags, ref index, escapeKeywordIdentifiers);
             return pooled.ToStringAndFree();
+        }
+
+        internal bool HasMangledName(TypeAndCustomInfo typeAndInfo)
+        {
+            foreach (char ch in typeAndInfo.Type.Name)
+            {
+                if (ch == '`')
+                {
+                    break;
+                }
+
+                if (!IsIdentifierPartCharacter(ch))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         /// <summary>

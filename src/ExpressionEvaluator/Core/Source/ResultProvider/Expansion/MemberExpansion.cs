@@ -476,10 +476,18 @@ namespace Microsoft.CodeAnalysis.ExpressionEvaluator
                 string qualifier;
                 if (memberIsStatic)
                 {
+                    if (formatter.HasMangledName(typeDeclaringMemberAndInfo))
+                    {
+                        return null; // FullName wouldn't be parseable.
+                    }
                     qualifier = formatter.GetTypeName(typeDeclaringMemberAndInfo, escapeKeywordIdentifiers: false);
                 }
                 else if (memberAccessRequiresExplicitCast)
                 {
+                    if (formatter.HasMangledName(typeDeclaringMemberAndInfo))
+                    {
+                        return null; // FullName wouldn't be parseable.
+                    }
                     var typeName = formatter.GetTypeName(typeDeclaringMemberAndInfo, escapeKeywordIdentifiers: true);
                     qualifier = formatter.GetCastExpression(
                         parentFullName,
@@ -506,6 +514,10 @@ namespace Microsoft.CodeAnalysis.ExpressionEvaluator
                 }
                 else
                 {
+                    if (formatter.HasMangledName(typeDeclaringMemberAndInfo))
+                    {
+                        return null; // FullName wouldn't be parseable.
+                    }
                     var interfaceName = formatter.GetTypeName(typeDeclaringMemberAndInfo, escapeKeywordIdentifiers: true);
                     var memberAccessTemplate = parent.ChildShouldParenthesize
                         ? "(({0})({1})).{2}"
