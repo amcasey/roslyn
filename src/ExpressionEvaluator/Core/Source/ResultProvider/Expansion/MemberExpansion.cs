@@ -382,7 +382,7 @@ namespace Microsoft.CodeAnalysis.ExpressionEvaluator
                 Expansion expansion)
             {
                 var formatter = resultProvider.Formatter;
-                var fullName = formatter.HasMangledName(declaredTypeAndInfo)
+                var fullName = formatter.HasNonIdentifierName(declaredTypeAndInfo)
                     ? null
                     : formatter.GetTypeName(declaredTypeAndInfo, escapeKeywordIdentifiers: true);
                 return new EvalResultDataItem(
@@ -473,12 +473,13 @@ namespace Microsoft.CodeAnalysis.ExpressionEvaluator
                 parentFullName = $"({parentFullName})";
             }
 
-            if (!typeDeclaringMemberAndInfo.Type.IsInterface)
+            var typeDeclaringMember = typeDeclaringMemberAndInfo.Type;
+            if (!typeDeclaringMember.IsInterface)
             {
                 string qualifier;
                 if (memberIsStatic)
                 {
-                    if (formatter.HasMangledName(typeDeclaringMemberAndInfo))
+                    if (!formatter.IsIdentifier(typeDeclaringMember.Name))
                     {
                         return null; // FullName wouldn't be parseable.
                     }
@@ -486,7 +487,7 @@ namespace Microsoft.CodeAnalysis.ExpressionEvaluator
                 }
                 else if (memberAccessRequiresExplicitCast)
                 {
-                    if (formatter.HasMangledName(typeDeclaringMemberAndInfo))
+                    if (!formatter.IsIdentifier(typeDeclaringMember.Name))
                     {
                         return null; // FullName wouldn't be parseable.
                     }
@@ -507,7 +508,7 @@ namespace Microsoft.CodeAnalysis.ExpressionEvaluator
                 // NOTE: This should never interact with debugger proxy types:
                 //   1) Interfaces cannot have debugger proxy types.
                 //   2) Debugger proxy types cannot be interfaces.
-                if (typeDeclaringMemberAndInfo.Type.Equals(parent.DeclaredTypeAndInfo.Type))
+                if (typeDeclaringMember.Equals(parent.DeclaredTypeAndInfo.Type))
                 {
                     var memberAccessTemplate = parent.ChildShouldParenthesize
                         ? "({0}).{1}"
@@ -516,7 +517,7 @@ namespace Microsoft.CodeAnalysis.ExpressionEvaluator
                 }
                 else
                 {
-                    if (formatter.HasMangledName(typeDeclaringMemberAndInfo))
+                    if (!formatter.IsIdentifier(typeDeclaringMember.Name))
                     {
                         return null; // FullName wouldn't be parseable.
                     }

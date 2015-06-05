@@ -330,14 +330,49 @@ namespace @namespace
         [Fact]
         public void MangledNames_MemberAccess()
         {
-            var source = @"
-public class @struct
+            var il = @"
+.class interface private abstract auto ansi <>IMangled
 {
-    public int @true;
-}
+  .method public hidebysig newslot abstract virtual 
+          instance void  M() cil managed
+  {
+  } // end of method <>IMangled::M
+
+} // end of class <>IMangled
+
+.class private auto ansi beforefieldinit C
+       extends [mscorlib]System.Object
+       implements <>IMangled
+{
+  .method private hidebysig newslot virtual final 
+          instance void  <>IMangled.M() cil managed
+  {
+    .override <>IMangled::M
+    // Code size       2 (0x2)
+    .maxstack  8
+    IL_0000:  nop
+    IL_0001:  ret
+  } // end of method C::<>IMangled.M
+
+  .method public hidebysig specialname rtspecialname 
+          instance void  .ctor() cil managed
+  {
+    // Code size       7 (0x7)
+    .maxstack  8
+    IL_0000:  ldarg.0
+    IL_0001:  call       instance void [mscorlib]System.Object::.ctor()
+    IL_0006:  ret
+  } // end of method C::.ctor
+
+} // end of class C
 ";
-            var assembly = GetAssembly(source);
-            var value = CreateDkmClrValue(assembly.GetType("struct").Instantiate());
+
+            ImmutableArray<byte> assemblyBytes;
+            ImmutableArray<byte> pdbBytes;
+            CSharpTestBase.EmitILToArray(il, appendDefaultHeader: true, includePdb: false, assemblyBytes: out assemblyBytes, pdbBytes: out pdbBytes);
+            var assembly = ReflectionUtilities.Load(assemblyBytes);
+
+            var value = CreateDkmClrValue(assembly.GetType("C").Instantiate());
 
             var root = FormatResult("o", value);
             Verify(GetChildren(root),
@@ -371,7 +406,7 @@ public class @struct
             var root = FormatResult("o", value);
             var children = GetChildren(root);
             Verify(children,
-                EvalResult("Static members", null, "", "<>Mangled", DkmEvaluationResultFlags.Expandable | DkmEvaluationResultFlags.ReadOnly, DkmEvaluationResultCategory.Class));
+                EvalResult("Static members", null, "", null, DkmEvaluationResultFlags.Expandable | DkmEvaluationResultFlags.ReadOnly, DkmEvaluationResultCategory.Class));
             Verify(GetChildren(children.Single()),
                 EvalResult("x", "0", "int", null, DkmEvaluationResultFlags.None, DkmEvaluationResultCategory.Data, DkmEvaluationResultAccessType.Public));
         }
@@ -379,26 +414,63 @@ public class @struct
         [Fact]
         public void MangledNames_ExplicitInterfaceImplementation()
         {
-            var source = @"
-namespace @namespace
+            var il = @"
+.class interface public abstract auto ansi 'I<>Mangled'
 {
-    public interface @interface<T>
-    {
-        int @return { get; set; }
-    }
+  .method public hidebysig newslot specialname abstract virtual 
+          instance int32  get_P() cil managed
+  {
+  }
 
-    public class @class : @interface<@class>
-    {
-        int @interface<@class>.@return { get; set; }
-    }
-}
+  .property instance int32 P()
+  {
+    .get instance int32 'I<>Mangled'::get_P()
+  }
+} // end of class 'I<>Mangled'
+
+.class public auto ansi beforefieldinit C
+       extends [mscorlib]System.Object
+       implements 'I<>Mangled'
+{
+  .method private hidebysig newslot specialname virtual final 
+          instance int32  'I<>Mangled.get_P'() cil managed
+  {
+    .override 'I<>Mangled'::get_P
+    ldc.i4.1
+    ret
+  }
+
+  .method public hidebysig specialname rtspecialname 
+          instance void  .ctor() cil managed
+  {
+    ldarg.0
+    call       instance void [mscorlib]System.Object::.ctor()
+    ret
+  }
+
+  .property instance int32 'I<>Mangled.P'()
+  {
+    .get instance int32 C::'I<>Mangled.get_P'()
+  }
+
+  .property instance int32 P()
+  {
+    .get instance int32 C::'I<>Mangled.get_P'()
+  }
+} // end of class C
 ";
-            var assembly = GetAssembly(source);
-            var value = CreateDkmClrValue(assembly.GetType("namespace.class").Instantiate());
+
+            ImmutableArray<byte> assemblyBytes;
+            ImmutableArray<byte> pdbBytes;
+            CSharpTestBase.EmitILToArray(il, appendDefaultHeader: true, includePdb: false, assemblyBytes: out assemblyBytes, pdbBytes: out pdbBytes);
+            var assembly = ReflectionUtilities.Load(assemblyBytes);
+
+            var value = CreateDkmClrValue(assembly.GetType("C").Instantiate());
 
             var root = FormatResult("instance", value);
             Verify(GetChildren(root),
-                EvalResult("@namespace.@interface<@namespace.@class>.@return", "0", "int", "((@namespace.@interface<@namespace.@class>)instance).@return"));
+                EvalResult("I<>Mangled.P", "1", "int", null, DkmEvaluationResultFlags.ReadOnly, DkmEvaluationResultCategory.Property, DkmEvaluationResultAccessType.Private),
+                EvalResult("P", "1", "int", "instance.P", DkmEvaluationResultFlags.ReadOnly, DkmEvaluationResultCategory.Property, DkmEvaluationResultAccessType.Private));
         }
     }
 }

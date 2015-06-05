@@ -13,7 +13,7 @@ namespace Microsoft.CodeAnalysis.ExpressionEvaluator
     {
         /// <returns>The qualified name (i.e. including containing types and namespaces) of a named,
         /// pointer, or array type.</returns>
-        internal string GetTypeName(TypeAndCustomInfo typeAndInfo, bool escapeKeywordIdentifiers = false)
+        internal string GetTypeName(TypeAndCustomInfo typeAndInfo, bool escapeKeywordIdentifiers, out bool sawInvalidIdentifier)
         {
             var type = typeAndInfo.Type;
             if (type == null)
@@ -24,13 +24,21 @@ namespace Microsoft.CodeAnalysis.ExpressionEvaluator
             var dynamicFlags = DynamicFlagsCustomTypeInfo.Create(typeAndInfo.Info);
             var index = 0;
             var pooled = PooledStringBuilder.GetInstance();
-            AppendQualifiedTypeName(pooled.Builder, type, dynamicFlags, ref index, escapeKeywordIdentifiers);
+            AppendQualifiedTypeName(pooled.Builder, type, dynamicFlags, ref index, escapeKeywordIdentifiers, out sawInvalidIdentifier);
             return pooled.ToStringAndFree();
         }
 
-        internal bool HasMangledName(TypeAndCustomInfo typeAndInfo)
+        /// <remarks>
+        /// Stops at the first backtick.
+        /// </remarks>
+        internal bool IsIdentifier(string name)
         {
-            foreach (char ch in typeAndInfo.Type.Name)
+            if (!IsIdentifierStartCharacter(name[0]))
+            {
+                return false;
+            }
+
+            foreach (char ch in name)
             {
                 if (ch == '`')
                 {
@@ -39,11 +47,11 @@ namespace Microsoft.CodeAnalysis.ExpressionEvaluator
 
                 if (!IsIdentifierPartCharacter(ch))
                 {
-                    return true;
+                    return false;
                 }
             }
 
-            return false;
+            return true;
         }
 
         /// <summary>
@@ -58,7 +66,13 @@ namespace Microsoft.CodeAnalysis.ExpressionEvaluator
         /// This is fortunate, since we don't have a good way to recognize them in metadata.
         /// Does not call itself (directly).
         /// </remarks>
-        protected void AppendQualifiedTypeName(StringBuilder builder, Type type, DynamicFlagsCustomTypeInfo dynamicFlags, ref int index, bool escapeKeywordIdentifiers)
+        protected void AppendQualifiedTypeName(
+            StringBuilder builder, 
+            Type type, 
+            DynamicFlagsCustomTypeInfo dynamicFlags, 
+            ref int index, 
+            bool escapeKeywordIdentifiers, 
+            out bool sawInvalidIdentifier)
         {
             Type originalType = type;
 
@@ -91,7 +105,7 @@ namespace Microsoft.CodeAnalysis.ExpressionEvaluator
             Debug.Assert(pointerCount == 0 || nullableCount == 0, "Benign: pointer to nullable?");
 
             int oldLength = builder.Length;
-            AppendQualifiedTypeNameInternal(builder, type, dynamicFlags, ref index, escapeKeywordIdentifiers);
+            AppendQualifiedTypeNameInternal(builder, type, dynamicFlags, ref index, escapeKeywordIdentifiers, out sawInvalidIdentifier);
             string name = builder.ToString(oldLength, builder.Length - oldLength);
 
             builder.Append('?', nullableCount);
@@ -116,7 +130,13 @@ namespace Microsoft.CodeAnalysis.ExpressionEvaluator
         /// <remarks>
         /// Does not call itself or <see cref="AppendQualifiedTypeName"/> (directly).
         /// </remarks>
-        private void AppendQualifiedTypeNameInternal(StringBuilder builder, Type type, DynamicFlagsCustomTypeInfo dynamicFlags, ref int index, bool escapeKeywordIdentifiers)
+        private void AppendQualifiedTypeNameInternal(
+            StringBuilder builder, 
+            Type type, 
+            DynamicFlagsCustomTypeInfo dynamicFlags, 
+            ref int index, 
+            bool escapeKeywordIdentifiers, 
+            out bool sawInvalidIdentifier)
         {
             var isDynamic = dynamicFlags[index++] && type.IsObject();
             if (AppendSpecialTypeName(builder, type, isDynamic, escapeKeywordIdentifiers))
@@ -184,7 +204,7 @@ namespace Microsoft.CodeAnalysis.ExpressionEvaluator
         /// Helper for appending the qualified name of the containing namespace of a type.
         /// NOTE: Unless the qualified name is empty, there will always be a trailing dot.
         /// </summary>
-        private void AppendNamespacePrefix(StringBuilder builder, Type type, bool escapeKeywordIdentifiers)
+        private void AppendNamespacePrefix(StringBuilder builder, Type type, bool escapeKeywordIdentifiers, out bool sawInvalidIdentifier)
         {
             var @namespace = type.Namespace;
             if (!string.IsNullOrEmpty(@namespace))
@@ -241,22 +261,33 @@ namespace Microsoft.CodeAnalysis.ExpressionEvaluator
         /// We're passing the full array plus bounds, rather than a tailored array, to avoid creating a lot of short-lived
         /// temporary arrays.
         /// </remarks>
-        private void AppendUnqualifiedTypeName(StringBuilder builder, Type type, DynamicFlagsCustomTypeInfo dynamicFlags, ref int index, bool escapeKeywordIdentifiers, Type[] typeArguments, int typeArgumentOffset, int arity)
+        private void AppendUnqualifiedTypeName(
+            StringBuilder builder, 
+            Type type, 
+            DynamicFlagsCustomTypeInfo dynamicFlags, 
+            ref int index, 
+            bool escapeKeywordIdentifiers, 
+            Type[] typeArguments, 
+            int typeArgumentOffset, 
+            int arity, 
+            out bool sawInvalidIdentifier)
         {
             if (typeArguments == null || arity == 0)
             {
-                AppendIdentifier(builder, escapeKeywordIdentifiers, type.Name);
+                AppendIdentifier(builder, escapeKeywordIdentifiers, type.Name, out sawInvalidIdentifier);
                 return;
             }
 
             var mangledName = type.Name;
             var separatorIndex = mangledName.IndexOf('`');
-            AppendIdentifier(builder, escapeKeywordIdentifiers, mangledName, separatorIndex);
+            AppendIdentifier(builder, escapeKeywordIdentifiers, mangledName, out sawInvalidIdentifier, separatorIndex);
 
-            AppendGenericTypeArgumentList(builder, typeArguments, typeArgumentOffset, dynamicFlags, ref index, arity, escapeKeywordIdentifiers);
+            bool argumentsSawInvalidIdentifier;
+            AppendGenericTypeArgumentList(builder, typeArguments, typeArgumentOffset, dynamicFlags, ref index, arity, escapeKeywordIdentifiers, out argumentsSawInvalidIdentifier);
+            sawInvalidIdentifier |= argumentsSawInvalidIdentifier;
         }
 
-        protected void AppendIdentifier(StringBuilder builder, bool escapeKeywordIdentifiers, string identifier, int length = -1)
+        protected void AppendIdentifier(StringBuilder builder, bool escapeKeywordIdentifiers, string identifier, out bool sawInvalidIdentifier, int length = -1)
         {
             Debug.Assert(length < 0 || (0 <= length && length <= identifier.Length));
 
@@ -267,10 +298,11 @@ namespace Microsoft.CodeAnalysis.ExpressionEvaluator
                     identifier = identifier.Substring(0, length);
                 }
 
-                AppendIdentifierEscapingPotentialKeywords(builder, identifier);
+                AppendIdentifierEscapingPotentialKeywords(builder, identifier, out sawInvalidIdentifier);
             }
             else if (length < 0)
             {
+                sawInvalidIdentifier = !IsIdentifier(identifier);
                 builder.Append(identifier);
             }
             else
@@ -279,17 +311,17 @@ namespace Microsoft.CodeAnalysis.ExpressionEvaluator
             }
         }
 
-        internal string GetIdentifierEscapingPotentialKeywords(string identifier)
+        internal string GetIdentifierEscapingPotentialKeywords(string identifier, out bool sawInvalidIdentifier)
         {
             var pooled = PooledStringBuilder.GetInstance();
             var builder = pooled.Builder;
-            AppendIdentifierEscapingPotentialKeywords(builder, identifier);
+            AppendIdentifierEscapingPotentialKeywords(builder, identifier, out sawInvalidIdentifier);
             return pooled.ToStringAndFree();
         }
 
         #region Language-specific type name formatting behavior
 
-        protected abstract void AppendIdentifierEscapingPotentialKeywords(StringBuilder builder, string identifier);
+        protected abstract void AppendIdentifierEscapingPotentialKeywords(StringBuilder builder, string identifier, out bool sawInvalidIdentifier);
 
         protected abstract void AppendGenericTypeArgumentList(
             StringBuilder builder, 
@@ -298,11 +330,12 @@ namespace Microsoft.CodeAnalysis.ExpressionEvaluator
             DynamicFlagsCustomTypeInfo dynamicFlags,
             ref int index,
             int arity, 
-            bool escapeKeywordIdentifiers);
+            bool escapeKeywordIdentifiers,
+            out bool sawInvalidIdentifier);
 
         protected abstract void AppendRankSpecifier(StringBuilder builder, int rank);
 
-        protected abstract bool AppendSpecialTypeName(StringBuilder builder, Type type, bool isDynamic, bool escapeKeywordIdentifiers);
+        protected abstract bool AppendSpecialTypeName(StringBuilder builder, Type type, bool isDynamic, bool escapeKeywordIdentifiers, out bool sawInvalidIdentifier);
 
         #endregion
     }

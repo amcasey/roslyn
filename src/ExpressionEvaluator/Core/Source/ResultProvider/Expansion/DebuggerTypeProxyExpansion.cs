@@ -121,7 +121,7 @@ namespace Microsoft.CodeAnalysis.ExpressionEvaluator
                 formatter);
             if (proxyMembers != null)
             {
-                Debug.Assert(childFullNamePrefix == null || !formatter.HasMangledName(proxyTypeAndInfo));
+                Debug.Assert(childFullNamePrefix == null || !formatter.HasNonIdentifierName(proxyTypeAndInfo));
                 var proxyMemberFullNamePrefix = (childFullNamePrefix == null) ?
                     null :
                     formatter.GetObjectCreationExpression(formatter.GetTypeName(proxyTypeAndInfo, escapeKeywordIdentifiers: true), childFullNamePrefix);
