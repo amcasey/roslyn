@@ -169,6 +169,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Classification
                              SyntaxKind.ExternalSourceKeyword,
                              SyntaxKind.ExternalChecksumKeyword,
                              SyntaxKind.EnableKeyword,
+                             SyntaxKind.ReferenceKeyword,
                              SyntaxKind.WarningKeyword,
                              SyntaxKind.DisableKeyword
 
