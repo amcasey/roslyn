@@ -94,7 +94,7 @@ namespace Microsoft.VisualStudio.InteractiveWindow
 
             /// <remarks>Always access through <see cref="EditorOperations"/>.</remarks>
             private IEditorOperations _editorOperations;
-            private IEditorOperations EditorOperations
+            public IEditorOperations EditorOperations
             {
                 get
                 {
@@ -110,7 +110,7 @@ namespace Microsoft.VisualStudio.InteractiveWindow
 
             /// <remarks>Always access through <see cref="State"/>.</remarks>
             private State _state;
-            private State State
+            public State State
             {
                 get
                 {
@@ -123,7 +123,7 @@ namespace Microsoft.VisualStudio.InteractiveWindow
                 }
             }
 
-            private UIThreadOnly(
+            public UIThreadOnly(
                 InteractiveWindow window,
                 IInteractiveWindowEditorFactoryService factory,
                 IContentTypeRegistryService contentTypeRegistry,
