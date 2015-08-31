@@ -28,8 +28,6 @@ namespace Microsoft.VisualStudio.InteractiveWindow
     /// </summary>
     internal partial class InteractiveWindow : IInteractiveWindow, IInteractiveWindowOperations2
     {
-        private bool _adornmentToMinimize;
-
         private readonly IWpfTextView _textView;
 
         public event EventHandler<SubmissionBufferAddedEventArgs> SubmissionBufferAdded;
@@ -374,53 +372,27 @@ namespace Microsoft.VisualStudio.InteractiveWindow
 
         Span IInteractiveWindow.Write(string text)
         {
-            int result = _buffer.Write(text);
-            return new Span(result, (text != null ? text.Length : 0));
+            return UIThread(uiOnly => uiOnly.Write(text));
         }
 
-        public Span WriteLine(string text)
+        Span IInteractiveWindow.WriteLine(string text)
         {
-            int result = _buffer.Write(text);
-            _buffer.Write(_lineBreakString);
-            return new Span(result, (text != null ? text.Length : 0) + _lineBreakString.Length);
+            return UIThread(uiOnly => uiOnly.WriteLine(text));
         }
 
         Span IInteractiveWindow.WriteError(string text)
         {
-            int result = _buffer.Write(text);
-            var res = new Span(result, (text != null ? text.Length : 0));
-            _errorOutputWriter.Spans.Add(res);
-            return res;
+            return UIThread(uiOnly => uiOnly.WriteError(text));
         }
 
         Span IInteractiveWindow.WriteErrorLine(string text)
         {
-            int result = _buffer.Write(text);
-            _buffer.Write(_lineBreakString);
-            var res = new Span(result, (text != null ? text.Length : 0) + _lineBreakString.Length);
-            _errorOutputWriter.Spans.Add(res);
-            return res;
+            return UIThread(uiOnly => uiOnly.WriteErrorLine(text));
         }
 
         void IInteractiveWindow.Write(UIElement element)
         {
-            if (element == null)
-            {
-                return;
-            }
-
-            _buffer.Flush();
-            InlineAdornmentProvider.AddInlineAdornment(_textView, element, OnAdornmentLoaded);
-            _adornmentToMinimize = true; // TODO (https://github.com/dotnet/roslyn/issues/4044): probably ui only
-            WriteLine(string.Empty);
-            WriteLine(string.Empty);
-        }
-
-        private void OnAdornmentLoaded(object source, EventArgs e)
-        {
-            // Make sure the caret line is rendered
-            DoEvents();
-            _textView.Caret.EnsureVisible();
+            UIThread(uiOnly => uiOnly.Write(element));
         }
 
 #endregion

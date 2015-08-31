@@ -196,6 +196,8 @@ namespace Microsoft.VisualStudio.InteractiveWindow
             private IIntellisenseSessionStack _sessionStack; // TODO: remove
             private readonly IIntellisenseSessionStackMapService _intellisenseSessionStackMap;
 
+            private bool _adornmentToMinimize;
+
             private IEditorOperations _editorOperations;
             public IEditorOperations EditorOperations
             {
@@ -306,7 +308,7 @@ namespace Microsoft.VisualStudio.InteractiveWindow
                     Debug.Assert(State == State.ExecutingInput || State == State.WaitingForInput);
                 }
 
-                _window._adornmentToMinimize = false;
+                _adornmentToMinimize = false;
                 InlineAdornmentProvider.RemoveAllAdornments(_window._textView);
 
                 // remove all the spans except our initial span from the projection buffer
@@ -858,11 +860,11 @@ namespace Microsoft.VisualStudio.InteractiveWindow
                 AppendLineNoPromptInjection(_window._currentLanguageBuffer);
                 ApplyProtection(_window._currentLanguageBuffer, regions: null);
 
-                if (_window._adornmentToMinimize)
+                if (_adornmentToMinimize)
                 {
                     // TODO (tomat): remember the index of the adornment(s) in the current output and minimize those instead of the last one 
                     InlineAdornmentProvider.MinimizeLastInlineAdornment(_window._textView);
-                    _window._adornmentToMinimize = false;
+                    _adornmentToMinimize = false;
                 }
 
                 NewOutputBuffer();
@@ -2720,6 +2722,61 @@ namespace Microsoft.VisualStudio.InteractiveWindow
                 }
                 return ReplSpanKind.Language;
             }
+
+            #region Output
+
+            public Span Write(string text)
+            {
+                int result = _window._buffer.Write(text);
+                return new Span(result, (text != null ? text.Length : 0));
+            }
+
+            public Span WriteLine(string text)
+            {
+                int result = _window._buffer.Write(text);
+                _window._buffer.Write(_window._lineBreakString);
+                return new Span(result, (text != null ? text.Length : 0) + _window._lineBreakString.Length);
+            }
+
+            public Span WriteError(string text)
+            {
+                int result = _window._buffer.Write(text);
+                var res = new Span(result, (text != null ? text.Length : 0));
+                _window._errorOutputWriter.Spans.Add(res);
+                return res;
+            }
+
+            public Span WriteErrorLine(string text)
+            {
+                int result = _window._buffer.Write(text);
+                _window._buffer.Write(_window._lineBreakString);
+                var res = new Span(result, (text != null ? text.Length : 0) + _window._lineBreakString.Length);
+                _window._errorOutputWriter.Spans.Add(res);
+                return res;
+            }
+
+            public void Write(UIElement element)
+            {
+                if (element == null)
+                {
+                    return;
+                }
+
+                _window._buffer.Flush();
+                InlineAdornmentProvider.AddInlineAdornment(_window._textView, element, OnAdornmentLoaded);
+                _adornmentToMinimize = true;
+                WriteLine(string.Empty);
+                WriteLine(string.Empty);
+            }
+
+            private void OnAdornmentLoaded(object source, EventArgs e)
+            {
+                // Make sure the caret line is rendered
+                DoEvents();
+                _window._textView.Caret.EnsureVisible();
+            }
+
+            #endregion
         }
     }
 }
