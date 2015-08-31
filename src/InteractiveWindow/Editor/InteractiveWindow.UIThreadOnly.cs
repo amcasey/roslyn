@@ -13,7 +13,6 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Threading;
-using Microsoft.CodeAnalysis.ErrorReporting;
 using Microsoft.VisualStudio.Language.Intellisense;
 using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Editor;
@@ -26,92 +25,8 @@ using Roslyn.Utilities;
 
 namespace Microsoft.VisualStudio.InteractiveWindow
 {
-    /// <summary>
-    /// Provides implementation of a Repl Window built on top of the VS editor using projection buffers.
-    /// </summary>
     internal partial class InteractiveWindow
     {
-        private readonly UIThreadOnly _dangerous_uiOnly;
-
-        #region Initialization
-
-        public InteractiveWindow(
-            IInteractiveWindowEditorFactoryService host,
-            IContentTypeRegistryService contentTypeRegistry,
-            ITextBufferFactoryService bufferFactory,
-            IProjectionBufferFactoryService projectionBufferFactory,
-            IEditorOperationsFactoryService editorOperationsFactory,
-            ITextEditorFactoryService editorFactory,
-            IRtfBuilderService rtfBuilderService,
-            IIntellisenseSessionStackMapService intellisenseSessionStackMap,
-            ISmartIndentationService smartIndenterService,
-            IInteractiveEvaluator evaluator)
-        {
-            if (evaluator == null)
-            {
-                throw new ArgumentNullException(nameof(evaluator));
-            }
-
-            _dangerous_uiOnly = new UIThreadOnly(
-                this,
-                host,
-                contentTypeRegistry,
-                bufferFactory,
-                projectionBufferFactory,
-                editorOperationsFactory,
-                editorFactory,
-                rtfBuilderService,
-                intellisenseSessionStackMap,
-                smartIndenterService,
-                evaluator);
-
-            RequiresUIThread();
-            evaluator.CurrentWindow = this;
-        }
-
-        async Task<ExecutionResult> IInteractiveWindow.InitializeAsync()
-        {
-            try
-            {
-                RequiresUIThread();
-                var uiOnly = _dangerous_uiOnly; // Verified above.
-
-                if (uiOnly.State != State.Starting)
-                {
-                    throw new InvalidOperationException(InteractiveWindowResources.AlreadyInitialized);
-                }
-
-                uiOnly.State = State.Initializing;
-
-                // Anything that reads options should wait until after this call so the evaluator can set the options first
-                ExecutionResult result = await uiOnly.Evaluator.InitializeAsync().ConfigureAwait(continueOnCapturedContext: true);
-
-                Debug.Assert(OnUIThread()); // ConfigureAwait should bring us back to the UI thread.
-
-                if (result.IsSuccessful)
-                {
-                    uiOnly.PrepareForInput();
-                }
-
-                return result;
-            }
-            catch (Exception e) when (ReportAndPropagateException(e))
-            {
-                throw ExceptionUtilities.Unreachable;
-            }
-        }
-
-        private bool ReportAndPropagateException(Exception e)
-        {
-            FatalError.ReportWithoutCrashUnlessCanceled(e); // Drop return value.
-
-            ((IInteractiveWindow)this).WriteErrorLine(InteractiveWindowResources.InternalError);
-
-            return false; // Never consider the exception handled.
-        }
-
-        #endregion
-
         private sealed partial class UIThreadOnly : IDisposable
         {
             private const string BoxSelectionCutCopyTag = "MSDEVColumnSelect";

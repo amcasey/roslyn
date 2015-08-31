@@ -5,14 +5,20 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Threading;
+using Microsoft.CodeAnalysis.ErrorReporting;
+using Microsoft.VisualStudio.Language.Intellisense;
 using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Editor;
+using Microsoft.VisualStudio.Text.Formatting;
+using Microsoft.VisualStudio.Text.Operations;
+using Microsoft.VisualStudio.Text.Projection;
 using Microsoft.VisualStudio.Utilities;
 using Roslyn.Utilities;
 
@@ -31,15 +37,88 @@ namespace Microsoft.VisualStudio.InteractiveWindow
 
         PropertyCollection IPropertyOwner.Properties { get; } = new PropertyCollection();
 
-        ////
-        //// Standard input.
-        ////
-
         private readonly SemaphoreSlim _inputReaderSemaphore = new SemaphoreSlim(initialCount: 1, maxCount: 1);
+        private readonly UIThreadOnly _dangerous_uiOnly;
 
-        //// 
-        //// Output.
-        //// 
+        #region Initialization
+
+        public InteractiveWindow(
+            IInteractiveWindowEditorFactoryService host,
+            IContentTypeRegistryService contentTypeRegistry,
+            ITextBufferFactoryService bufferFactory,
+            IProjectionBufferFactoryService projectionBufferFactory,
+            IEditorOperationsFactoryService editorOperationsFactory,
+            ITextEditorFactoryService editorFactory,
+            IRtfBuilderService rtfBuilderService,
+            IIntellisenseSessionStackMapService intellisenseSessionStackMap,
+            ISmartIndentationService smartIndenterService,
+            IInteractiveEvaluator evaluator)
+        {
+            if (evaluator == null)
+            {
+                throw new ArgumentNullException(nameof(evaluator));
+            }
+
+            _dangerous_uiOnly = new UIThreadOnly(
+                this,
+                host,
+                contentTypeRegistry,
+                bufferFactory,
+                projectionBufferFactory,
+                editorOperationsFactory,
+                editorFactory,
+                rtfBuilderService,
+                intellisenseSessionStackMap,
+                smartIndenterService,
+                evaluator);
+
+            evaluator.CurrentWindow = this;
+
+            RequiresUIThread();
+        }
+
+        async Task<ExecutionResult> IInteractiveWindow.InitializeAsync()
+        {
+            try
+            {
+                RequiresUIThread();
+                var uiOnly = _dangerous_uiOnly; // Verified above.
+
+                if (uiOnly.State != State.Starting)
+                {
+                    throw new InvalidOperationException(InteractiveWindowResources.AlreadyInitialized);
+                }
+
+                uiOnly.State = State.Initializing;
+
+                // Anything that reads options should wait until after this call so the evaluator can set the options first
+                ExecutionResult result = await uiOnly.Evaluator.InitializeAsync().ConfigureAwait(continueOnCapturedContext: true);
+
+                Debug.Assert(OnUIThread()); // ConfigureAwait should bring us back to the UI thread.
+
+                if (result.IsSuccessful)
+                {
+                    uiOnly.PrepareForInput();
+                }
+
+                return result;
+            }
+            catch (Exception e) when (ReportAndPropagateException(e))
+            {
+                throw ExceptionUtilities.Unreachable;
+            }
+        }
+
+        private bool ReportAndPropagateException(Exception e)
+        {
+            FatalError.ReportWithoutCrashUnlessCanceled(e); // Drop return value.
+
+            ((IInteractiveWindow)this).WriteErrorLine(InteractiveWindowResources.InternalError);
+
+            return false; // Never consider the exception handled.
+        }
+
+        #endregion
 
         void IInteractiveWindow.Close()
         {
@@ -184,7 +263,7 @@ namespace Microsoft.VisualStudio.InteractiveWindow
         internal void AppendOutput(IEnumerable<string> output)
         {
             RequiresUIThread();
-            _dangerous_uiOnly.AppendOutput(output);
+            _dangerous_uiOnly.AppendOutput(output); // Verified above.
         }
 
         /// <summary>
