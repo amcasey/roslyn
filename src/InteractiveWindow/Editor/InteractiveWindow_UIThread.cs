@@ -388,7 +388,7 @@ namespace Microsoft.VisualStudio.InteractiveWindow
 
                     AddStandardInputSpan();
 
-                    _window.Caret.EnsureVisible();
+                    _window._textView.Caret.EnsureVisible();
                     ResetCursor();
 
                     UncommittedInput = null;
@@ -688,7 +688,7 @@ namespace Microsoft.VisualStudio.InteractiveWindow
                     PointTrackingMode.Positive);
                 ReplaceProjectionSpan(spanCount - 1, replSpan);
 
-                _window.Caret.EnsureVisible();
+                _window._textView.Caret.EnsureVisible();
             }
 
             public void PrepareForInput()
@@ -710,8 +710,8 @@ namespace Microsoft.VisualStudio.InteractiveWindow
                     RestoreUncommittedInput();
 
                     // move to the end (it might have been in virtual space):
-                    _window.Caret.MoveTo(GetLastLine(_window.TextBuffer.CurrentSnapshot).End);
-                    _window.Caret.EnsureVisible();
+                    _window._textView.Caret.MoveTo(GetLastLine(_window._textView.TextBuffer.CurrentSnapshot).End);
+                    _window._textView.Caret.EnsureVisible();
 
                     State = State.WaitingForInput;
 
@@ -1025,7 +1025,7 @@ namespace Microsoft.VisualStudio.InteractiveWindow
             {
                 try
                 {
-                    ITextBuffer languageBuffer = GetLanguageBuffer(_window.Caret.Position.BufferPosition);
+                    ITextBuffer languageBuffer = GetLanguageBuffer(_window._textView.Caret.Position.BufferPosition);
                     if (languageBuffer == null)
                     {
                         return;
@@ -1384,7 +1384,7 @@ namespace Microsoft.VisualStudio.InteractiveWindow
             /// </summary>
             public void Home(bool extendSelection)
             {
-                var caret = _window.Caret;
+                var caret = _window._textView.Caret;
 
                 // map the end of subject buffer line:
                 var subjectLineEnd = _window._textView.BufferGraph.MapDownToFirstMatch(
@@ -1439,7 +1439,7 @@ namespace Microsoft.VisualStudio.InteractiveWindow
             /// </summary>
             public void End(bool extendSelection)
             {
-                var caret = _window.Caret;
+                var caret = _window._textView.Caret;
 
                 // map the end of the subject buffer line:
                 var subjectLineEnd = _window._textView.BufferGraph.MapDownToFirstMatch(
@@ -1478,7 +1478,7 @@ namespace Microsoft.VisualStudio.InteractiveWindow
                 // if the span is already selected select all text in the projection buffer:
                 if (span == null || selection.SelectedSpans.Count == 1 && selection.SelectedSpans[0] == span.Value)
                 {
-                    var currentSnapshot = _window.TextBuffer.CurrentSnapshot;
+                    var currentSnapshot = _window._textView.TextBuffer.CurrentSnapshot;
                     span = new SnapshotSpan(currentSnapshot, new Span(0, currentSnapshot.Length));
                 }
 
@@ -1513,7 +1513,7 @@ namespace Microsoft.VisualStudio.InteractiveWindow
                     projectionSpan.End;
 
                 var bufferGraph = _window._textView.BufferGraph;
-                var textBuffer = _window.TextBuffer;
+                var textBuffer = _window._textView.TextBuffer;
 
                 SnapshotPoint projectedInputBufferEnd = bufferGraph.MapUpToBuffer(
                     inputBufferEnd,
@@ -2049,7 +2049,7 @@ namespace Microsoft.VisualStudio.InteractiveWindow
                 }
 
                 // handle "RETURN" command that is not handled by either editor or service
-                var langCaret = _window.GetPositionInLanguageBuffer(_window.Caret.Position.BufferPosition);
+                var langCaret = _window.GetPositionInLanguageBuffer(_window._textView.Caret.Position.BufferPosition);
                 if (langCaret != null)
                 {
                     int caretPosition = langCaret.Value.Position;
@@ -2111,7 +2111,7 @@ namespace Microsoft.VisualStudio.InteractiveWindow
                 var langPoint = _window._textView.BufferGraph.MapDownToBuffer(
                     new SnapshotPoint(
                         _window._projectionBuffer.CurrentSnapshot,
-                        _window.Caret.Position.BufferPosition.Position),
+                        _window._textView.Caret.Position.BufferPosition.Position),
                     PointTrackingMode.Positive,
                     _window._currentLanguageBuffer,
                     PositionAffinity.Predecessor);
