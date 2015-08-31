@@ -13,7 +13,6 @@ using System.Windows;
 using System.Windows.Threading;
 using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Editor;
-using Microsoft.VisualStudio.Text.Projection;
 using Microsoft.VisualStudio.Utilities;
 using Roslyn.Utilities;
 
@@ -28,21 +27,9 @@ namespace Microsoft.VisualStudio.InteractiveWindow
     /// </summary>
     internal partial class InteractiveWindow : IInteractiveWindow, IInteractiveWindowOperations2
     {
-        private readonly IWpfTextView _textView;
-
         public event EventHandler<SubmissionBufferAddedEventArgs> SubmissionBufferAdded;
 
-        public PropertyCollection Properties { get; }
-
-        ////
-        //// Buffer composition.
-        //// 
-        private readonly ITextBuffer _outputBuffer;
-        private readonly IProjectionBuffer _projectionBuffer;
-        private readonly ITextBuffer _standardInputBuffer;
-        private readonly IContentType _inertType;
-
-        private ITextBuffer _currentLanguageBuffer;
+        PropertyCollection IPropertyOwner.Properties { get; } = new PropertyCollection();
 
         ////
         //// Standard input.
@@ -54,12 +41,6 @@ namespace Microsoft.VisualStudio.InteractiveWindow
         //// Output.
         //// 
 
-        private readonly OutputBuffer _buffer;
-        private readonly TextWriter _outputWriter;
-        private readonly InteractiveWindowWriter _errorOutputWriter;
-
-        private readonly string _lineBreakString;
-
         void IInteractiveWindow.Close()
         {
             UIThread(uiOnly => uiOnly.Close());
@@ -67,14 +48,14 @@ namespace Microsoft.VisualStudio.InteractiveWindow
 
         #region Misc Helpers
 
-        public ITextBuffer CurrentLanguageBuffer => _currentLanguageBuffer;
+        /// <remarks>
+        /// The caller is responsible for using the buffer in a thread-safe manner.
+        /// </remarks>
+        public ITextBuffer CurrentLanguageBuffer => _dangerous_uiOnly.CurrentLanguageBuffer;
 
         void IDisposable.Dispose()
         {
-            if (_buffer != null)
-            {
-                _buffer.Dispose();
-            }
+            UIThread(uiOnly => ((IDisposable)uiOnly).Dispose());
         }
 
         public static InteractiveWindow FromBuffer(ITextBuffer buffer)
@@ -90,15 +71,30 @@ namespace Microsoft.VisualStudio.InteractiveWindow
 
         public event Action ReadyForInput;
 
-        IWpfTextView IInteractiveWindow.TextView => _textView;
+        /// <remarks>
+        /// The caller is responsible for using the text view in a thread-safe manner.
+        /// </remarks>
+        IWpfTextView IInteractiveWindow.TextView => _dangerous_uiOnly.TextView;
 
-        ITextBuffer IInteractiveWindow.OutputBuffer => _outputBuffer;
+        /// <remarks>
+        /// The caller is responsible for using the buffer in a thread-safe manner.
+        /// </remarks>
+        ITextBuffer IInteractiveWindow.OutputBuffer => _dangerous_uiOnly.OutputBuffer;
 
-        TextWriter IInteractiveWindow.OutputWriter => _outputWriter;
+        /// <remarks>
+        /// The caller is responsible for using the writer in a thread-safe manner.
+        /// </remarks>
+        TextWriter IInteractiveWindow.OutputWriter => _dangerous_uiOnly.OutputWriter;
 
-        TextWriter IInteractiveWindow.ErrorOutputWriter => _errorOutputWriter;
+        /// <remarks>
+        /// The caller is responsible for using the writer in a thread-safe manner.
+        /// </remarks>
+        TextWriter IInteractiveWindow.ErrorOutputWriter => _dangerous_uiOnly.ErrorOutputWriter;
 
-        IInteractiveEvaluator IInteractiveWindow.Evaluator => _dangerous_uiOnly.Evaluator; // Caller's responsibility
+        /// <remarks>
+        /// The caller is responsible for using the evaluator in a thread-safe manner.
+        /// </remarks>
+        IInteractiveEvaluator IInteractiveWindow.Evaluator => _dangerous_uiOnly.Evaluator;
 
         /// <remarks>
         /// Normally, an async method would have an NFW exception filter.  This
@@ -140,8 +136,7 @@ namespace Microsoft.VisualStudio.InteractiveWindow
 
         void IInteractiveWindow.FlushOutput()
         {
-            // Flush can only be called on the UI thread.
-            UIThread(uiOnly => _buffer.Flush());
+            UIThread(uiOnly => uiOnly.FlushOutput());
         }
 
         void IInteractiveWindow.InsertCode(string text)
@@ -408,7 +403,7 @@ namespace Microsoft.VisualStudio.InteractiveWindow
 
         #region UI Dispatcher Helpers
 
-        private Dispatcher Dispatcher => ((FrameworkElement)_textView).Dispatcher;
+        private Dispatcher Dispatcher => ((FrameworkElement)_dangerous_uiOnly.TextView).Dispatcher; // Always safe to access the dispatcher.
 
         internal bool OnUIThread()
         {

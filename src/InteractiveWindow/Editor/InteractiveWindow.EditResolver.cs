@@ -81,7 +81,7 @@ namespace Microsoft.VisualStudio.InteractiveWindow
 
             private bool IsEditableBuffer(ITextBuffer buffer)
             {
-                return buffer == _window._currentLanguageBuffer || buffer == _window._standardInputBuffer;
+                return _window.UIThread(uiOnly => buffer == uiOnly.CurrentLanguageBuffer || buffer == uiOnly.StandardInputBuffer);
             }
         }
     }
