@@ -93,7 +93,6 @@ namespace Microsoft.VisualStudio.InteractiveWindow
 
                 // Anything that reads options should wait until after this call so the evaluator can set the options first
                 ExecutionResult result = await uiOnly.Evaluator.InitializeAsync().ConfigureAwait(continueOnCapturedContext: true);
-
                 Debug.Assert(OnUIThread()); // ConfigureAwait should bring us back to the UI thread.
 
                 if (result.IsSuccessful)
