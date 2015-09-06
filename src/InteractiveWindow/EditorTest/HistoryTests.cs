@@ -34,6 +34,20 @@ namespace Microsoft.VisualStudio.InteractiveWindow.UnitTests
         }
 
         [Fact]
+        public void TestClear()
+        {
+            AddEntries("1", "2", "3");
+            Assert.Equal(3, _history.Items.
+
+            Test(
+                new Step(() => _history.GetPrevious(null), "3"),
+                new Step(() => _history.GetPrevious(null), "2"),
+                new Step(() => _history.GetPrevious(null), "1"),
+                new Step(() => _history.GetPrevious(null), null),
+                new Step(() => _history.GetPrevious(null), null));
+        }
+
+        [Fact]
         public void TestPrevious()
         {
             AddEntries("1", "2", "3");
@@ -82,7 +96,7 @@ namespace Microsoft.VisualStudio.InteractiveWindow.UnitTests
 
         private void AddEntries(params string[] entries)
         {
-            var oldLength = _buffer.CurrentSnapshot.Length;
+            var oldLength = BufferLength;
 
             foreach (var entry in entries)
             {
@@ -94,7 +108,7 @@ namespace Microsoft.VisualStudio.InteractiveWindow.UnitTests
 
         private void AddEntry(string entry)
         {
-            var oldLength = _buffer.CurrentSnapshot.Length;
+            var oldLength = BufferLength;
             var snapshot = _buffer.Insert(oldLength, entry);
             var snapshotSpan = new SnapshotSpan(snapshot, new Span(oldLength, entry.Length));
             _history.Add(snapshotSpan);
@@ -112,5 +126,9 @@ namespace Microsoft.VisualStudio.InteractiveWindow.UnitTests
                 ExpectedText = expectedText;
             }
         }
+
+        private int BufferLength => _buffer.CurrentSnapshot.Length;
+
+        private IEnumerable<string> HistoryEntries => _history.Items.Select(e =>
     }
 }
