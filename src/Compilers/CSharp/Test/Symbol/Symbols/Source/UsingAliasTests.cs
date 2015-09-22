@@ -364,5 +364,31 @@ namespace NS
             Assert.Equal(0, symbolInfo.CandidateSymbols.Length);
             Assert.Equal(CandidateReason.None, symbolInfo.CandidateReason);
         }
+
+        [WorkItem(4811, "https://github.com/dotnet/roslyn/issues/4811")]
+        [Fact]
+        public void AliasInSubmission()
+        {
+            const string source = @"
+using T = Type;
+
+class Type { }
+";
+
+            CreateSubmission(source).VerifyDiagnostics();
+        }
+
+        [WorkItem(4811, "https://github.com/dotnet/roslyn/issues/4811")]
+        [Fact]
+        public void AliasInSubmission_Previous()
+        {
+            var sub1 = CreateSubmission("class A { }");
+            var sub2 = CreateSubmission("class B : A { }", previous: sub1);
+            var sub3 = CreateSubmission("class C : B { }", previous: sub2);
+            
+            CreateSubmission("using C1 = C;", previous: sub3).VerifyDiagnostics();
+            CreateSubmission("using B1 = B;", previous: sub3).VerifyDiagnostics();
+            CreateSubmission("using A1 = A;", previous: sub3).VerifyDiagnostics();
+        }
     }
 }
