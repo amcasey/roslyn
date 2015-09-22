@@ -96,11 +96,10 @@ namespace Microsoft.CodeAnalysis.CSharp
 
                 // A binder that contains the extern aliases but not the usings. The resolution of the target of a using directive or alias 
                 // should not make use of other peer usings.
-                var usingsBinder = binder.IsSubmissionClass ?
-                    // Top-level usings in interactive code are resolved in the context of global namespace, w/o extern aliases:
-                    new InContainerBinder(binder.Compilation.GlobalNamespace, new BuckStopsHereBinder(binder.Compilation)) :
-                    new InContainerBinder(binder.Container, binder.Next,
-                        new Imports(binder.Compilation, null, ImmutableArray<NamespaceOrTypeAndUsingDirective>.Empty, externAliases, null));
+                var usingsBinder = new InContainerBinder(
+                    binder.Container, 
+                    binder.Next,
+                    new Imports(binder.Compilation, null, ImmutableArray<NamespaceOrTypeAndUsingDirective>.Empty, externAliases, null));
 
                 var uniqueUsings = PooledHashSet<NamespaceOrTypeSymbol>.GetInstance();
 
