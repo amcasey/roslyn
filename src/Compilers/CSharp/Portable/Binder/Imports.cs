@@ -92,14 +92,17 @@ namespace Microsoft.CodeAnalysis.CSharp
 
             if (usingDirectives.Count > 0)
             {
-                Debug.Assert(!binder.IsSubmissionClass || externAliases.Length == 0, "Submission has extern aliases");
-
                 // A binder that contains the extern aliases but not the usings. The resolution of the target of a using directive or alias 
                 // should not make use of other peer usings.
-                var usingsBinder = new InContainerBinder(
+                var aliasBinder = new InContainerBinder(
                     binder.Container, 
                     binder.Next,
                     new Imports(binder.Compilation, null, ImmutableArray<NamespaceOrTypeAndUsingDirective>.Empty, externAliases, null));
+
+                Debug.Assert(!binder.IsSubmissionClass || externAliases.Length == 0, "Submission has extern aliases");
+                var usingsBinder = binder.Compilation.IsSubmission
+                    ? new InContainerBinder(binder.Compilation.GlobalNamespace, new BuckStopsHereBinder(binder.Compilation))
+                    : aliasBinder;
 
                 var uniqueUsings = PooledHashSet<NamespaceOrTypeSymbol>.GetInstance();
 
@@ -144,7 +147,7 @@ namespace Microsoft.CodeAnalysis.CSharp
 
                             // construct the alias sym with the binder for which we are building imports. That
                             // way the alias target can make use of extern alias definitions.
-                            usingAliases.Add(identifierValueText, new AliasAndUsingDirective(new AliasSymbol(usingsBinder, usingDirective), usingDirective));
+                            usingAliases.Add(identifierValueText, new AliasAndUsingDirective(new AliasSymbol(aliasBinder, usingDirective), usingDirective));
                         }
                     }
                     else
