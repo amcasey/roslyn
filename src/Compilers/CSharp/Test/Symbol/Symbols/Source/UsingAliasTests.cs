@@ -367,6 +367,13 @@ namespace NS
 
         [WorkItem(4811, "https://github.com/dotnet/roslyn/issues/4811")]
         [Fact]
+        public void UsingInSubmission()
+        {
+            CreateSubmission("using System;").VerifyDiagnostics();
+        }
+
+        [WorkItem(4811, "https://github.com/dotnet/roslyn/issues/4811")]
+        [Fact]
         public void AliasInSubmission()
         {
             const string source = @"
