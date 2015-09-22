@@ -437,17 +437,11 @@ using System;
             {
                 // (2,11): error CS0246: The type or namespace name 'Int32' could not be found (are you missing a using directive or an assembly reference?)
                 // using I = Int32;
-                Diagnostic(ErrorCode.ERR_SingleTypeNameNotFound, "Int32").WithArguments("Int32").WithLocation(2, 11),
-                // (3,1): hidden CS8019: Unnecessary using directive.
-                // using System;
-                Diagnostic(ErrorCode.HDN_UnusedUsingDirective, "using System;").WithLocation(3, 1),
-                // (2,1): hidden CS8019: Unnecessary using directive.
-                // using I = Int32;
-                Diagnostic(ErrorCode.HDN_UnusedUsingDirective, "using I = Int32;").WithLocation(2, 1)
+                Diagnostic(ErrorCode.ERR_SingleTypeNameNotFound, "Int32").WithArguments("Int32").WithLocation(2, 11)
             };
 
-            CreateCompilationWithMscorlib(source).VerifyDiagnostics(expectedDiagnostics);
-            CreateSubmission(source).VerifyDiagnostics(expectedDiagnostics);
+            CreateCompilationWithMscorlib(source).GetDiagnostics().Where(d => d.Severity > DiagnosticSeverity.Hidden).Verify(expectedDiagnostics);
+            CreateSubmission(source).GetDiagnostics().Verify(expectedDiagnostics);
         }
 
         [WorkItem(4811, "https://github.com/dotnet/roslyn/issues/4811")]
@@ -462,17 +456,11 @@ using J = I;
             {
                 // (3,11): error CS0246: The type or namespace name 'I' could not be found (are you missing a using directive or an assembly reference?)
                 // using J = I;
-                Diagnostic(ErrorCode.ERR_SingleTypeNameNotFound, "I").WithArguments("I").WithLocation(3, 11),
-                // (2,1): hidden CS8019: Unnecessary using directive.
-                // using I = System.Int32;
-                Diagnostic(ErrorCode.HDN_UnusedUsingDirective, "using I = System.Int32;").WithLocation(2, 1),
-                // (3,1): hidden CS8019: Unnecessary using directive.
-                // using J = I;
-                Diagnostic(ErrorCode.HDN_UnusedUsingDirective, "using J = I;").WithLocation(3, 1)
+                Diagnostic(ErrorCode.ERR_SingleTypeNameNotFound, "I").WithArguments("I").WithLocation(3, 11)
             };
 
-            CreateCompilationWithMscorlib(source).VerifyDiagnostics(expectedDiagnostics);
-            CreateSubmission(source).VerifyDiagnostics(expectedDiagnostics);
+            CreateCompilationWithMscorlib(source).GetDiagnostics().Where(d => d.Severity > DiagnosticSeverity.Hidden).Verify(expectedDiagnostics);
+            CreateSubmission(source).GetDiagnostics().Verify(expectedDiagnostics);
         }
     }
 }
