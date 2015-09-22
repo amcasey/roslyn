@@ -375,7 +375,20 @@ using T = Type;
 class Type { }
 ";
 
-            CreateSubmission(source).VerifyDiagnostics();
+            var sub = CreateSubmission(source);
+            sub.VerifyDiagnostics();
+
+            var typeSymbol = sub.ScriptClass.GetMember("Type");
+
+            var tree = sub.SyntaxTrees.Single();
+            var model = sub.GetSemanticModel(tree);
+            var syntax = tree.GetRoot().DescendantNodes().OfType<UsingDirectiveSyntax>().Single();
+
+            var aliasSymbol = model.GetDeclaredSymbol(syntax);
+            Assert.Equal(SymbolKind.Alias, aliasSymbol.Kind);
+            Assert.Equal(typeSymbol, ((AliasSymbol)aliasSymbol).Target);
+
+            Assert.Equal(typeSymbol, model.GetSymbolInfo(syntax.Name).Symbol);
         }
 
         [WorkItem(4811, "https://github.com/dotnet/roslyn/issues/4811")]
@@ -386,9 +399,23 @@ class Type { }
             var sub2 = CreateSubmission("class B : A { }", previous: sub1);
             var sub3 = CreateSubmission("class C : B { }", previous: sub2);
             
-            CreateSubmission("using C1 = C;", previous: sub3).VerifyDiagnostics();
-            CreateSubmission("using B1 = B;", previous: sub3).VerifyDiagnostics();
             CreateSubmission("using A1 = A;", previous: sub3).VerifyDiagnostics();
+            CreateSubmission("using B1 = B;", previous: sub3).VerifyDiagnostics();
+
+            var sub4 = CreateSubmission("using C1 = C;", previous: sub3);
+            sub4.VerifyDiagnostics();
+
+            var typeSymbol = sub3.ScriptClass.GetMember("C");
+
+            var tree = sub4.SyntaxTrees.Single();
+            var model = sub4.GetSemanticModel(tree);
+            var syntax = tree.GetRoot().DescendantNodes().OfType<UsingDirectiveSyntax>().Single();
+
+            var aliasSymbol = model.GetDeclaredSymbol(syntax);
+            Assert.Equal(SymbolKind.Alias, aliasSymbol.Kind);
+            Assert.Equal(typeSymbol, ((AliasSymbol)aliasSymbol).Target);
+
+            Assert.Equal(typeSymbol, model.GetSymbolInfo(syntax.Name).Symbol);
         }
     }
 }
