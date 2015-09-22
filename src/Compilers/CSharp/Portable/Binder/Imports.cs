@@ -92,6 +92,8 @@ namespace Microsoft.CodeAnalysis.CSharp
 
             if (usingDirectives.Count > 0)
             {
+                Debug.Assert(!binder.IsSubmissionClass || externAliases.Length == 0, "Submission has extern aliases");
+
                 // A binder that contains the extern aliases but not the usings. The resolution of the target of a using directive or alias 
                 // should not make use of other peer usings.
                 var usingsBinder = binder.IsSubmissionClass ?
