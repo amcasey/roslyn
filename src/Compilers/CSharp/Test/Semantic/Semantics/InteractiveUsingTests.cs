@@ -43,6 +43,28 @@ namespace Microsoft.CodeAnalysis.CSharp.UnitTests
             Assert.Equal(SymbolKind.Property, GetSpeculativeSymbol(sub, "NewLine").Kind);
         }
 
+        [Fact]
+        public void GlobalUsings()
+        {
+            var sub1 = CreateSubmission(
+                "Combine(Environment.NewLine, Environment.NewLine)",
+                options: TestOptions.DebugDll.WithUsings("System", "System.IO.Path"));
+            sub1.VerifyDiagnostics();
+
+            // No global usings specified - expect to reuse previous.
+            var sub2 = CreateSubmission(
+                "Combine(Environment.NewLine, Environment.NewLine)",
+                previous: sub1);
+            sub2.VerifyDiagnostics();
+
+            // Global usings specified - expect to append to previous.
+            var sub3 = CreateSubmission(
+                "new StringBuilder().Append(Combine(Environment.NewLine, Environment.NewLine))",
+                previous: sub2,
+                options: TestOptions.DebugDll.WithUsings("System.Text"));
+            sub3.VerifyDiagnostics();
+        }
+
         [WorkItem(4811, "https://github.com/dotnet/roslyn/issues/4811")]
         [Fact]
         public void AliasCurrentSubmission()
@@ -116,6 +138,25 @@ using System;
 
             CreateCompilationWithMscorlib(source).GetDiagnostics().Where(d => d.Severity > DiagnosticSeverity.Hidden).Verify(expectedDiagnostics);
             CreateSubmission(source).GetDiagnostics().Verify(expectedDiagnostics);
+        }
+
+        [Fact]
+        public void AliasUnqualified_GlobalUsing()
+        {
+            const string source = @"
+using I = Int32;
+";
+            var expectedDiagnostics = new[]
+            {
+                // (2,11): error CS0246: The type or namespace name 'Int32' could not be found (are you missing a using directive or an assembly reference?)
+                // using I = Int32;
+                Diagnostic(ErrorCode.ERR_SingleTypeNameNotFound, "Int32").WithArguments("Int32").WithLocation(2, 11)
+            };
+
+            var options = TestOptions.DebugDll.WithUsings("System");
+
+            CreateCompilationWithMscorlib(source, options: options).GetDiagnostics().Where(d => d.Severity > DiagnosticSeverity.Hidden).Verify(expectedDiagnostics);
+            CreateSubmission(source, options: options).GetDiagnostics().Verify(expectedDiagnostics);
         }
 
         [Fact]
@@ -204,6 +245,25 @@ using System.IO;
 
             CreateCompilationWithMscorlib(source).GetDiagnostics().Where(d => d.Severity > DiagnosticSeverity.Hidden).Verify(expectedDiagnostics);
             CreateSubmission(source).GetDiagnostics().Verify(expectedDiagnostics);
+        }
+
+        [Fact]
+        public void UsingStaticUnqualified_GlobalUsing()
+        {
+            const string source = @"
+using static Path;
+";
+            var expectedDiagnostics = new[]
+            {
+                // (2,14): error CS0246: The type or namespace name 'Path' could not be found (are you missing a using directive or an assembly reference?)
+                // using static Path;
+                Diagnostic(ErrorCode.ERR_SingleTypeNameNotFound, "Path").WithArguments("Path").WithLocation(2, 14)
+            };
+
+            var options = TestOptions.DebugDll.WithUsings("System");
+
+            CreateCompilationWithMscorlib(source, options: options).GetDiagnostics().Where(d => d.Severity > DiagnosticSeverity.Hidden).Verify(expectedDiagnostics);
+            CreateSubmission(source, options: options).GetDiagnostics().Verify(expectedDiagnostics);
         }
 
         [Fact]
