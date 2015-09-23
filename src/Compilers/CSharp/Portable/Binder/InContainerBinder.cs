@@ -139,11 +139,11 @@ namespace Microsoft.CodeAnalysis.CSharp
             string name,
             int arity,
             LookupOptions options,
-            bool isCallerSemanticModel)
+            BinderFlags flags)
         {
             if (searchUsingsNotNamespace)
             {
-                this.GetImports().LookupExtensionMethodsInUsings(methods, name, arity, options, isCallerSemanticModel);
+                this.GetImports().LookupExtensionMethodsInUsings(methods, name, arity, options, flags);
             }
             else
             {
@@ -210,11 +210,11 @@ namespace Microsoft.CodeAnalysis.CSharp
             {
                 var imports = GetImports(basesBeingResolved: null);
 
-                imports.AddLookupSymbolsInfoInAliases(this, result, options);
+                imports.AddLookupSymbolsInfoInAliases(this, result, options, originalBinder);
 
                 // Add types within namespaces imported through usings, but don't add nested namespaces.
                 LookupOptions usingOptions = (options & ~(LookupOptions.NamespaceAliasesOnly | LookupOptions.NamespacesOrTypesOnly)) | LookupOptions.MustNotBeNamespace;
-                Imports.AddLookupSymbolsInfoInUsings(imports.Usings, this, result, usingOptions);
+                Imports.AddLookupSymbolsInfoInUsings(imports.Usings, this, result, usingOptions, originalBinder);
             }
         }
 

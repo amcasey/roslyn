@@ -87,6 +87,12 @@ namespace Microsoft.CodeAnalysis.CSharp
         /// </summary>
         IgnoreCorLibraryDuplicatedTypes = 1 << 26,
 
+        /// <summary>
+        /// Ignore usings (including using aliases and using static) during binding/lookup.
+        /// Still consider extern aliases.
+        /// </summary>
+        IgnoreUsings = 1 << 27,
+
         // Groups
 
         AllClearedAtExecutableCodeBoundary = InLockBody | InCatchBlock | InCatchFilter | InFinallyBlock | InTryBlockOfTryCatch | InNestedFinallyBlock,

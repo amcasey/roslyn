@@ -69,7 +69,7 @@ namespace Microsoft.CodeAnalysis.CSharp
             // Add types within namespaces imported through usings, but don't add nested namespaces.
             LookupOptions usingOptions = (options & ~(LookupOptions.NamespaceAliasesOnly | LookupOptions.NamespacesOrTypesOnly)) | LookupOptions.MustNotBeNamespace;
 
-            Imports.AddLookupSymbolsInfoInUsings(ConsolidatedUsings, this, result, usingOptions);
+            Imports.AddLookupSymbolsInfoInUsings(ConsolidatedUsings, this, result, usingOptions, originalBinder);
         }
 
         private static bool ShouldLookInUsings(LookupOptions options)
@@ -91,8 +91,13 @@ namespace Microsoft.CodeAnalysis.CSharp
             string name,
             int arity,
             LookupOptions options,
-            bool isCallerSemanticModel)
+            BinderFlags flags)
         {
+            if (flags.Includes(BinderFlags.IgnoreUsings))
+            {
+                return;
+            }
+
             if (searchUsingsNotNamespace)
             {
                 foreach (var nsOrType in ConsolidatedUsings)

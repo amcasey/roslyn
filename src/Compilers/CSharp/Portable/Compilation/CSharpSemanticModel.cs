@@ -3968,7 +3968,7 @@ namespace Microsoft.CodeAnalysis.CSharp
                                                              name,
                                                              arity,
                                                              options,
-                                                             isCallerSemanticModel: true);
+                                                             BinderFlags.SemanticModel | binder.Flags);
 
                     foreach (var method in extensionMethods)
                     {

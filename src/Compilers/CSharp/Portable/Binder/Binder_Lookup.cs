@@ -239,6 +239,8 @@ namespace Microsoft.CodeAnalysis.CSharp
             LookupResult nonViable = LookupResult.GetInstance();
             SymbolKind? lookingForOverloadsOfKind = null;
 
+            var ignoreUsings = originalBinder.Flags.Includes(BinderFlags.IgnoreUsings);
+
             // TODO: optimize lookup (there might be many interactions in the chain)
             for (CSharpCompilation submission = Compilation; submission != null; submission = submission.PreviousSubmission)
             {
@@ -251,22 +253,25 @@ namespace Microsoft.CodeAnalysis.CSharp
                     LookupMembersWithoutInheritance(submissionSymbols, submission.ScriptClass, name, arity, options, originalBinder, submissionClass, diagnose, ref useSiteDiagnostics, basesBeingResolved);
                 }
 
-                // using aliases:
-                Imports imports = submission.GetSubmissionImports();
-                if (submissionSymbols.Symbols.Count > 0 && imports.IsUsingAlias(name, this.IsSemanticModelBinder))
+                if (!ignoreUsings)
                 {
-                    // using alias is ambiguous with another definition within the same submission iff the other definition is a 0-ary type or a non-type:
-                    Symbol existingDefinition = submissionSymbols.Symbols.First();
-                    if (existingDefinition.Kind == SymbolKind.NamedType && arity == 0 || existingDefinition.Kind != SymbolKind.NamedType)
+                    // using aliases:
+                    Imports imports = submission.GetSubmissionImports();
+                    if (submissionSymbols.Symbols.Count > 0 && imports.IsUsingAlias(name, this.IsSemanticModelBinder))
                     {
-                        CSDiagnosticInfo diagInfo = new CSDiagnosticInfo(ErrorCode.ERR_ConflictingAliasAndDefinition, name, existingDefinition.GetKindText());
-                        var error = new ExtendedErrorTypeSymbol((NamespaceOrTypeSymbol)null, name, arity, diagInfo, unreported: true);
-                        result.SetFrom(LookupResult.Good(error)); // force lookup to be done w/ error symbol as result
-                        break;
+                        // using alias is ambiguous with another definition within the same submission iff the other definition is a 0-ary type or a non-type:
+                        Symbol existingDefinition = submissionSymbols.Symbols.First();
+                        if (existingDefinition.Kind == SymbolKind.NamedType && arity == 0 || existingDefinition.Kind != SymbolKind.NamedType)
+                        {
+                            CSDiagnosticInfo diagInfo = new CSDiagnosticInfo(ErrorCode.ERR_ConflictingAliasAndDefinition, name, existingDefinition.GetKindText());
+                            var error = new ExtendedErrorTypeSymbol((NamespaceOrTypeSymbol)null, name, arity, diagInfo, unreported: true);
+                            result.SetFrom(LookupResult.Good(error)); // force lookup to be done w/ error symbol as result
+                            break;
+                        }
                     }
-                }
 
-                imports.LookupSymbolInAliases(originalBinder, submissionSymbols, name, arity, basesBeingResolved, options, diagnose, ref useSiteDiagnostics);
+                    imports.LookupSymbolInAliases(originalBinder, submissionSymbols, name, arity, basesBeingResolved, options, diagnose, ref useSiteDiagnostics);
+                }
 
                 if (lookingForOverloadsOfKind == null)
                 {
@@ -337,7 +342,7 @@ namespace Microsoft.CodeAnalysis.CSharp
         {
             var methods = ArrayBuilder<MethodSymbol>.GetInstance();
             var binder = scope.Binder;
-            binder.GetCandidateExtensionMethods(scope.SearchUsingsNotNamespace, methods, name, arity, options, this.IsSemanticModelBinder);
+            binder.GetCandidateExtensionMethods(scope.SearchUsingsNotNamespace, methods, name, arity, options, this.Flags);
 
             foreach (var method in methods)
             {
@@ -611,7 +616,7 @@ namespace Microsoft.CodeAnalysis.CSharp
             string name,
             int arity,
             LookupOptions options,
-            bool isCallerSemanticModel)
+            BinderFlags flags)
         {
         }
 
@@ -1491,9 +1496,14 @@ namespace Microsoft.CodeAnalysis.CSharp
         {
             // TODO: we need tests
             // TODO: optimize lookup (there might be many interactions in the chain)
+            var ignoreUsings = originalBinder.Flags.Includes(BinderFlags.IgnoreUsings);
             for (CSharpCompilation submission = Compilation; submission != null; submission = submission.PreviousSubmission)
             {
-                submission.GetSubmissionImports().AddLookupSymbolsInfoInAliases(this, result, options);
+                if (!ignoreUsings)
+                {
+                    submission.GetSubmissionImports().AddLookupSymbolsInfoInAliases(this, result, options, originalBinder);
+                }
+
                 if ((object)submission.ScriptClass != null)
                 {
                     AddMemberLookupSymbolsInfoWithoutInheritance(result, submission.ScriptClass, options, originalBinder, scriptClass);
