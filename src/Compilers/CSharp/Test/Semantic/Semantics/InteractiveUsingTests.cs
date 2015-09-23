@@ -12,7 +12,6 @@ namespace Microsoft.CodeAnalysis.CSharp.UnitTests
 {
     public class InteractiveUsingTests : CSharpTestBase
     {
-        // TODO (acasey): using static
         // TODO (acasey): #loaded usings
         // TODO (acasey): global usings
         // TODO (acasey): notes https://github.com/tmat/roslyn/tree/master/docs/specs 
@@ -254,7 +253,7 @@ t = typeof(C); // declaration exposed
                 submissionSource,
                 options: TestOptions.DebugDll.WithSourceReferenceResolver(resolver));
 
-            compilation.VerifyDiagnostics();
+            compilation.VerifyDiagnostics(); // TODO (acasey): 3 errors
         }
 
         [Fact]
@@ -289,7 +288,7 @@ class C { }
                 submissionSource,
                 options: TestOptions.DebugDll.WithSourceReferenceResolver(resolver));
 
-            compilation.VerifyDiagnostics();
+            compilation.VerifyDiagnostics(); // TODO (acasey): 3 errors
         }
 
         private static Symbol GetSpeculativeSymbol(CSharpCompilation comp, string name)
