@@ -1,12 +1,6 @@
 ﻿// Copyright (c) Microsoft.  All Rights Reserved.  Licensed under the Apache License, Version 2.0.  See License.txt in the project root for license information.
 
-using System;
 using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Test.Utilities;
 using Xunit;
 
@@ -63,6 +57,72 @@ namespace Microsoft.CodeAnalysis.CSharp.UnitTests
         }
 
         [Fact]
+        void UsingsFromLoad()
+        {
+            const string scriptSource = @"
+using static System.IO.Path;
+using System.IO;
+using F = System.IO.File;
+
+class C { }
+";
+
+            const string submissionSource = @"
+#load ""a.csx""
+
+System.Type t;
+
+GetTempPath(); // using static not exposed
+t = typeof(File); // using alias not exposed
+t = typeof(F); // using not exposed
+
+t = typeof(C); // declaration exposed
+";
+
+            var resolver = CreateResolver(
+                Script("a.csx", scriptSource));
+
+            var compilation = CreateSubmission(
+                submissionSource,
+                options: TestOptions.DebugDll.WithSourceReferenceResolver(resolver));
+
+            compilation.VerifyDiagnostics();
+        }
+
+        [Fact]
+        void UsingsToLoad()
+        {
+            const string scriptSource = @"
+System.Type t;
+
+GetTempPath(); // using static not exposed
+t = typeof(File); // using alias not exposed
+t = typeof(F); // using not exposed
+
+t = typeof(C); // declaration exposed
+";
+
+            const string submissionSource = @"
+#load ""a.csx""
+
+using static System.IO.Path;
+using System.IO;
+using F = System.IO.File;
+
+class C { }
+";
+
+            var resolver = CreateResolver(
+                Script("a.csx", scriptSource));
+
+            var compilation = CreateSubmission(
+                submissionSource,
+                options: TestOptions.DebugDll.WithSourceReferenceResolver(resolver));
+
+            compilation.VerifyDiagnostics();
+        }
+
+        [Fact]
         void NoSourceReferenceResolver()
         {
             var code = "#load \"test\"";
@@ -91,56 +151,12 @@ namespace Microsoft.CodeAnalysis.CSharp.UnitTests
             {
                 sources.Add(script.Key, script.Value);
             }
-            return new TestSourceReferenceResolver(sources);
+            return TestSourceReferenceResolver.Create(sources);
         }
 
         private static KeyValuePair<string, string> Script(string path, string source)
         {
             return new KeyValuePair<string, string>(path, source);
-        }
-
-        private class TestSourceReferenceResolver : SourceReferenceResolver
-        {
-            private readonly IDictionary<string, string> _sources;
-
-            public static TestSourceReferenceResolver Default { get; } = new TestSourceReferenceResolver();
-
-            public TestSourceReferenceResolver(IDictionary<string, string> sources = null)
-            {
-                _sources = sources;
-            }
-
-            public override string NormalizePath(string path, string baseFilePath)
-            {
-                return path;
-            }
-
-            public override string ResolveReference(string path, string baseFilePath)
-            {
-                return ((_sources != null) && _sources.ContainsKey(path)) ? path : null;
-            }
-
-            public override Stream OpenRead(string resolvedPath)
-            {
-                if (_sources != null)
-                {
-                    return new MemoryStream(Encoding.UTF8.GetBytes(_sources[resolvedPath]));
-                }
-                else
-                {
-                    throw new IOException();
-                }
-            }
-
-            public override bool Equals(object other)
-            {
-                return this.Equals(other);
-            }
-
-            public override int GetHashCode()
-            {
-                return this.GetHashCode();
-            }
         }
     }
 }
