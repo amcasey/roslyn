@@ -4,8 +4,9 @@ using System.Collections.Generic;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Text;
+using Microsoft.CodeAnalysis;
 
-namespace Microsoft.CodeAnalysis.CSharp.UnitTests
+namespace Roslyn.Test.Utilities
 {
     public sealed class TestSourceReferenceResolver : SourceReferenceResolver
     {
