@@ -251,22 +251,22 @@ namespace Microsoft.CodeAnalysis.CSharp
                     LookupMembersWithoutInheritance(submissionSymbols, submission.ScriptClass, name, arity, options, originalBinder, submissionClass, diagnose, ref useSiteDiagnostics, basesBeingResolved);
                 }
 
-                //// using aliases:
-                //Imports imports = submission.GetSubmissionImports();
-                //if (submissionSymbols.Symbols.Count > 0 && imports.IsUsingAlias(name, this.IsSemanticModelBinder))
-                //{
-                //    // using alias is ambiguous with another definition within the same submission iff the other definition is a 0-ary type or a non-type:
-                //    Symbol existingDefinition = submissionSymbols.Symbols.First();
-                //    if (existingDefinition.Kind == SymbolKind.NamedType && arity == 0 || existingDefinition.Kind != SymbolKind.NamedType)
-                //    {
-                //        CSDiagnosticInfo diagInfo = new CSDiagnosticInfo(ErrorCode.ERR_ConflictingAliasAndDefinition, name, existingDefinition.GetKindText());
-                //        var error = new ExtendedErrorTypeSymbol((NamespaceOrTypeSymbol)null, name, arity, diagInfo, unreported: true);
-                //        result.SetFrom(LookupResult.Good(error)); // force lookup to be done w/ error symbol as result
-                //        break;
-                //    }
-                //}
+                // using aliases:
+                Imports imports = submission.GetSubmissionImports();
+                if (submissionSymbols.Symbols.Count > 0 && imports.IsUsingAlias(name, this.IsSemanticModelBinder))
+                {
+                    // using alias is ambiguous with another definition within the same submission iff the other definition is a 0-ary type or a non-type:
+                    Symbol existingDefinition = submissionSymbols.Symbols.First();
+                    if (existingDefinition.Kind == SymbolKind.NamedType && arity == 0 || existingDefinition.Kind != SymbolKind.NamedType)
+                    {
+                        CSDiagnosticInfo diagInfo = new CSDiagnosticInfo(ErrorCode.ERR_ConflictingAliasAndDefinition, name, existingDefinition.GetKindText());
+                        var error = new ExtendedErrorTypeSymbol((NamespaceOrTypeSymbol)null, name, arity, diagInfo, unreported: true);
+                        result.SetFrom(LookupResult.Good(error)); // force lookup to be done w/ error symbol as result
+                        break;
+                    }
+                }
 
-                //imports.LookupSymbolInAliases(originalBinder, submissionSymbols, name, arity, basesBeingResolved, options, diagnose, ref useSiteDiagnostics);
+                imports.LookupSymbolInAliases(originalBinder, submissionSymbols, name, arity, basesBeingResolved, options, diagnose, ref useSiteDiagnostics);
 
                 if (lookingForOverloadsOfKind == null)
                 {
