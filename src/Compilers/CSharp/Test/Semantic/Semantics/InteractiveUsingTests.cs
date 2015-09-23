@@ -37,10 +37,10 @@ namespace Microsoft.CodeAnalysis.CSharp.UnitTests
         [Fact]
         public void UsingStatic()
         {
-            var sub = CreateSubmission("using static System.IO.Path;");
+            var sub = CreateSubmission("using static System.Environment;");
             sub.VerifyDiagnostics();
 
-            Assert.Equal(SymbolKind.Method, GetSpeculativeSymbol(sub, "GetTempPath").Kind);
+            Assert.Equal(SymbolKind.Property, GetSpeculativeSymbol(sub, "NewLine").Kind);
         }
 
         [WorkItem(4811, "https://github.com/dotnet/roslyn/issues/4811")]
@@ -222,7 +222,7 @@ using System.IO;
         }
 
         [Fact]
-        void UsingsFromLoad()
+        void UsingsFromLoadedScript()
         {
             const string scriptSource = @"
 using static System.IO.Path;
@@ -238,8 +238,8 @@ class C { }
 System.Type t;
 
 GetTempPath(); // using static not exposed
-t = typeof(File); // using alias not exposed
-t = typeof(F); // using not exposed
+t = typeof(File); // using not exposed
+t = typeof(F); // using alias not exposed
 
 t = typeof(C); // declaration exposed
 ";
@@ -253,18 +253,27 @@ t = typeof(C); // declaration exposed
                 submissionSource,
                 options: TestOptions.DebugDll.WithSourceReferenceResolver(resolver));
 
-            compilation.VerifyDiagnostics(); // TODO (acasey): 3 errors
+            compilation.VerifyDiagnostics(
+                // (6,1): error CS0103: The name 'GetTempPath' does not exist in the current context
+                // GetTempPath(); // using static not exposed
+                Diagnostic(ErrorCode.ERR_NameNotInContext, "GetTempPath").WithArguments("GetTempPath").WithLocation(6, 1),
+                // (7,12): error CS0246: The type or namespace name 'File' could not be found (are you missing a using directive or an assembly reference?)
+                // t = typeof(File); // using not exposed
+                Diagnostic(ErrorCode.ERR_SingleTypeNameNotFound, "File").WithArguments("File").WithLocation(7, 12),
+                // (8,12): error CS0246: The type or namespace name 'F' could not be found (are you missing a using directive or an assembly reference?)
+                // t = typeof(F); // using alias not exposed
+                Diagnostic(ErrorCode.ERR_SingleTypeNameNotFound, "F").WithArguments("F").WithLocation(8, 12));
         }
 
         [Fact]
-        void UsingsToLoad()
+        void UsingsToLoadedScript()
         {
             const string scriptSource = @"
 System.Type t;
 
 GetTempPath(); // using static not exposed
-t = typeof(File); // using alias not exposed
-t = typeof(F); // using not exposed
+t = typeof(File); // using not exposed
+t = typeof(F); // using alias not exposed
 
 t = typeof(C); // declaration exposed
 ";
@@ -288,7 +297,42 @@ class C { }
                 submissionSource,
                 options: TestOptions.DebugDll.WithSourceReferenceResolver(resolver));
 
-            compilation.VerifyDiagnostics(); // TODO (acasey): 3 errors
+            compilation.VerifyDiagnostics(
+                // a.csx(4,1): error CS0103: The name 'GetTempPath' does not exist in the current context
+                // GetTempPath(); // using static not exposed
+                Diagnostic(ErrorCode.ERR_NameNotInContext, "GetTempPath").WithArguments("GetTempPath").WithLocation(4, 1),
+                // a.csx(5,12): error CS0246: The type or namespace name 'File' could not be found (are you missing a using directive or an assembly reference?)
+                // t = typeof(File); // using not exposed
+                Diagnostic(ErrorCode.ERR_SingleTypeNameNotFound, "File").WithArguments("File").WithLocation(5, 12),
+                // a.csx(6,12): error CS0246: The type or namespace name 'F' could not be found (are you missing a using directive or an assembly reference?)
+                // t = typeof(F); // using alias not exposed
+                Diagnostic(ErrorCode.ERR_SingleTypeNameNotFound, "F").WithArguments("F").WithLocation(6, 12));
+        }
+
+        [Fact]
+        void GlobalUsingsToLoadedScript()
+        {
+            const string scriptSource = @"
+System.Type t;
+
+GetTempPath(); // global using static exposed
+t = typeof(File); // global using exposed
+";
+
+            const string submissionSource = @"
+#load ""a.csx""
+";
+
+            var resolver = TestSourceReferenceResolver.Create(new Dictionary<string, string>
+            {
+                { "a.csx", scriptSource }
+            });
+
+            var compilation = CreateSubmission(
+                submissionSource,
+                options: TestOptions.DebugDll.WithSourceReferenceResolver(resolver).WithUsings("System.IO", "System.IO.Path"));
+
+            compilation.VerifyDiagnostics();
         }
 
         private static Symbol GetSpeculativeSymbol(CSharpCompilation comp, string name)
