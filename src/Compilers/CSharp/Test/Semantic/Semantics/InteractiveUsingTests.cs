@@ -6,6 +6,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.CSharp.Test.Utilities;
 using Roslyn.Test.Utilities;
 using Xunit;
+using System.Collections.Generic;
 
 namespace Microsoft.CodeAnalysis.CSharp.UnitTests
 {
@@ -160,7 +161,7 @@ using static Type;
 
 class Type
 {
-    public static readonly int Field;
+    public static readonly int Field = 1;
 }
 ";
 
@@ -219,6 +220,76 @@ using System.IO;
         public void DuplicateUsing_DifferentSubmissions()
         {
             CreateSubmission("using System;", previous: CreateSubmission("using System;")).VerifyDiagnostics();
+        }
+
+        [Fact]
+        void UsingsFromLoad()
+        {
+            const string scriptSource = @"
+using static System.IO.Path;
+using System.IO;
+using F = System.IO.File;
+
+class C { }
+";
+
+            const string submissionSource = @"
+#load ""a.csx""
+
+System.Type t;
+
+GetTempPath(); // using static not exposed
+t = typeof(File); // using alias not exposed
+t = typeof(F); // using not exposed
+
+t = typeof(C); // declaration exposed
+";
+
+            var resolver = TestSourceReferenceResolver.Create(new Dictionary<string, string>
+            {
+                { "a.csx", scriptSource }
+            });
+
+            var compilation = CreateSubmission(
+                submissionSource,
+                options: TestOptions.DebugDll.WithSourceReferenceResolver(resolver));
+
+            compilation.VerifyDiagnostics();
+        }
+
+        [Fact]
+        void UsingsToLoad()
+        {
+            const string scriptSource = @"
+System.Type t;
+
+GetTempPath(); // using static not exposed
+t = typeof(File); // using alias not exposed
+t = typeof(F); // using not exposed
+
+t = typeof(C); // declaration exposed
+";
+
+            const string submissionSource = @"
+#load ""a.csx""
+
+using static System.IO.Path;
+using System.IO;
+using F = System.IO.File;
+
+class C { }
+";
+
+            var resolver = TestSourceReferenceResolver.Create(new Dictionary<string, string>
+            {
+                { "a.csx", scriptSource }
+            });
+
+            var compilation = CreateSubmission(
+                submissionSource,
+                options: TestOptions.DebugDll.WithSourceReferenceResolver(resolver));
+
+            compilation.VerifyDiagnostics();
         }
 
         private static Symbol GetSpeculativeSymbol(CSharpCompilation comp, string name)
