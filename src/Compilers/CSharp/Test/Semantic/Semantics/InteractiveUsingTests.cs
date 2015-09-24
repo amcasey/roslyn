@@ -214,9 +214,9 @@ class Type
         [Fact]
         public void UsingStaticPreviousSubmission()
         {
-            var sub1 = CreateSubmission("class A { static int AA; }");
-            var sub2 = CreateSubmission("class B { static int BB; }", previous: sub1);
-            var sub3 = CreateSubmission("class C { static int CC; }", previous: sub2);
+            var sub1 = CreateSubmission("class A { public static int AA; }");
+            var sub2 = CreateSubmission("class B { public static int BB; }", previous: sub1);
+            var sub3 = CreateSubmission("class C { public static int CC; }", previous: sub2);
 
             CreateSubmission("using static A;", previous: sub3).VerifyDiagnostics();
             CreateSubmission("using static B;", previous: sub3).VerifyDiagnostics();
