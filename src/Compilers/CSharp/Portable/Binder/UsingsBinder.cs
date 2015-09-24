@@ -25,7 +25,7 @@ namespace Microsoft.CodeAnalysis.CSharp
                 {
                     // TODO (acasey): I'm pretty sure these flags are wrong.
                     ImmutableInterlocked.InterlockedCompareExchange(
-                        ref _lazyConsolidatedUsings, GetConsolidatedUsings(BinderFlags.None), default(ImmutableArray<NamespaceOrTypeAndUsingDirective>));
+                        ref _lazyConsolidatedUsings, GetConsolidatedUsings(BinderFlags.IgnoreUsings), default(ImmutableArray<NamespaceOrTypeAndUsingDirective>));
                 }
 
                 return _lazyConsolidatedUsings;
