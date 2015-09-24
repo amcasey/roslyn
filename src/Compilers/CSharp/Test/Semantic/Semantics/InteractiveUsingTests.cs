@@ -12,8 +12,6 @@ namespace Microsoft.CodeAnalysis.CSharp.UnitTests
 {
     public class InteractiveUsingTests : CSharpTestBase
     {
-        // TODO (acasey): #loaded usings
-        // TODO (acasey): global usings
         // TODO (acasey): notes https://github.com/tmat/roslyn/tree/master/docs/specs 
 
         [Fact]
