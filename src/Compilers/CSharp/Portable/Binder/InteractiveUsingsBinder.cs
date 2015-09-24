@@ -19,9 +19,9 @@ namespace Microsoft.CodeAnalysis.CSharp
         {
         }
 
-        protected override ImmutableArray<NamespaceOrTypeAndUsingDirective> GetConsolidatedUsings()
+        protected override ImmutableArray<NamespaceOrTypeAndUsingDirective> GetConsolidatedUsings(BinderFlags flags)
         {
-            var currentSubmissionUsings = this.Compilation.GetSubmissionImports().Usings;
+            var currentSubmissionUsings = this.Compilation.GetSubmissionImports().GetUsings(flags);
 
             // find the first preceding non-empty submission (has InteractiveUsingsBinder):
             CSharpCompilation previous = this.Compilation.PreviousSubmission;

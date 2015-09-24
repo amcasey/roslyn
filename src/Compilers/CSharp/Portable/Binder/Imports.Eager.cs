@@ -13,8 +13,8 @@ namespace Microsoft.CodeAnalysis.CSharp
     {
         private sealed class Eager : Imports
         {
-            protected override Dictionary<string, AliasAndUsingDirective> UsingAliases { get; }
-            protected override ImmutableArray<NamespaceOrTypeAndUsingDirective> Usings { get; }
+            protected override Dictionary<string, AliasAndUsingDirective> UsingAliasesInternal { get; }
+            protected override ImmutableArray<NamespaceOrTypeAndUsingDirective> UsingsInternal { get; }
 
             protected override ImmutableArray<Diagnostic> Diagnostics { get; }
 
@@ -29,8 +29,8 @@ namespace Microsoft.CodeAnalysis.CSharp
                 Debug.Assert(!usings.IsDefault);
                 Debug.Assert(!diagnostics.IsDefault);
 
-                this.UsingAliases = usingAliases;
-                this.Usings = usings;
+                this.UsingAliasesInternal = usingAliases;
+                this.UsingsInternal = usings;
                 this.Diagnostics = diagnostics;
             }
         }

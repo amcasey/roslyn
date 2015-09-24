@@ -23,15 +23,16 @@ namespace Microsoft.CodeAnalysis.CSharp
             {
                 if (_lazyConsolidatedUsings.IsDefault)
                 {
+                    // TODO (acasey): I'm pretty sure these flags are wrong.
                     ImmutableInterlocked.InterlockedCompareExchange(
-                        ref _lazyConsolidatedUsings, GetConsolidatedUsings(), default(ImmutableArray<NamespaceOrTypeAndUsingDirective>));
+                        ref _lazyConsolidatedUsings, GetConsolidatedUsings(BinderFlags.None), default(ImmutableArray<NamespaceOrTypeAndUsingDirective>));
                 }
 
                 return _lazyConsolidatedUsings;
             }
         }
 
-        protected virtual ImmutableArray<NamespaceOrTypeAndUsingDirective> GetConsolidatedUsings()
+        protected virtual ImmutableArray<NamespaceOrTypeAndUsingDirective> GetConsolidatedUsings(BinderFlags flags)
         {
             throw ExceptionUtilities.Unreachable;
         }
@@ -47,7 +48,7 @@ namespace Microsoft.CodeAnalysis.CSharp
             LookupResult tmp = LookupResult.GetInstance();
 
             // usings:
-            Imports.Empty.LookupSymbolInUsings(ConsolidatedUsings, originalBinder, tmp, name, arity, basesBeingResolved, options, diagnose, ref useSiteDiagnostics);
+            Imports.LookupSymbolInUsings(ConsolidatedUsings, originalBinder, tmp, name, arity, basesBeingResolved, options, diagnose, ref useSiteDiagnostics);
 
             // if we found a viable result in imported namespaces, use it instead of unviable symbols found in source:
             if (tmp.IsMultiViable)
@@ -61,7 +62,6 @@ namespace Microsoft.CodeAnalysis.CSharp
         protected override void AddLookupSymbolsInfoInSingleBinder(
             LookupSymbolsInfo result, LookupOptions options, Binder originalBinder)
         {
-
             if (!ShouldLookInUsings(options))
             {
                 return;
@@ -70,7 +70,7 @@ namespace Microsoft.CodeAnalysis.CSharp
             // Add types within namespaces imported through usings, but don't add nested namespaces.
             LookupOptions usingOptions = (options & ~(LookupOptions.NamespaceAliasesOnly | LookupOptions.NamespacesOrTypesOnly)) | LookupOptions.MustNotBeNamespace;
 
-            Imports.AddLookupSymbolsInfoInUsings(ConsolidatedUsings, this, result, usingOptions, originalBinder);
+            Imports.AddLookupSymbolsInfoInUsings(ConsolidatedUsings, this, result, usingOptions);
         }
 
         private static bool ShouldLookInUsings(LookupOptions options)
@@ -101,11 +101,11 @@ namespace Microsoft.CodeAnalysis.CSharp
 
             if (searchUsingsNotNamespace)
             {
-                foreach (var nsOrType in ConsolidatedUsings)
+                foreach (var @using in ConsolidatedUsings)
                 {
-                    if (nsOrType.NamespaceOrType.Kind == SymbolKind.Namespace)
+                    if (@using.NamespaceOrType.Kind == SymbolKind.Namespace)
                     {
-                        ((NamespaceSymbol)nsOrType.NamespaceOrType).GetExtensionMethods(methods, name, arity, options);
+                        ((NamespaceSymbol)@using.NamespaceOrType).GetExtensionMethods(methods, name, arity, options);
                     }
                 }
             }

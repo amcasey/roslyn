@@ -239,7 +239,7 @@ namespace Microsoft.CodeAnalysis.CSharp
             LookupResult nonViable = LookupResult.GetInstance();
             SymbolKind? lookingForOverloadsOfKind = null;
 
-            var ignoreUsings = originalBinder.Flags.Includes(BinderFlags.IgnoreUsings);
+            var ignoreUsings = false; //TODO (acasey): originalBinder.Flags.Includes(BinderFlags.IgnoreUsings);
 
             // TODO: optimize lookup (there might be many interactions in the chain)
             for (CSharpCompilation submission = Compilation; submission != null; submission = submission.PreviousSubmission)
@@ -1496,13 +1496,9 @@ namespace Microsoft.CodeAnalysis.CSharp
         {
             // TODO: we need tests
             // TODO: optimize lookup (there might be many interactions in the chain)
-            var ignoreUsings = originalBinder.Flags.Includes(BinderFlags.IgnoreUsings);
             for (CSharpCompilation submission = Compilation; submission != null; submission = submission.PreviousSubmission)
             {
-                if (!ignoreUsings)
-                {
-                    submission.GetSubmissionImports().AddLookupSymbolsInfoInAliases(this, result, options, originalBinder);
-                }
+                submission.GetSubmissionImports().AddLookupSymbolsInfoInAliases(this, result, options, originalBinder);
 
                 if ((object)submission.ScriptClass != null)
                 {

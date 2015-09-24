@@ -42,8 +42,8 @@ namespace Microsoft.CodeAnalysis.CSharp
                 _externDiagnostics = externDiagnostics;
             }
 
-            protected override Dictionary<string, AliasAndUsingDirective> UsingAliases => Resolved.UsingAliases;
-            protected override ImmutableArray<NamespaceOrTypeAndUsingDirective> Usings => Resolved.Usings;
+            protected override Dictionary<string, AliasAndUsingDirective> UsingAliasesInternal => Resolved.UsingAliases;
+            protected override ImmutableArray<NamespaceOrTypeAndUsingDirective> UsingsInternal => Resolved.Usings;
 
             protected override ImmutableArray<Diagnostic> Diagnostics => Resolved.Diagnostics;
 

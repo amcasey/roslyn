@@ -803,35 +803,38 @@ namespace Microsoft.CodeAnalysis.CSharp
                         //           + script class members & top-level using aliases
                         //
 
-                        if (compilation.IsSubmission)
+                        if (!inUsing)
                         {
-                            // TODO (acasey): avoid walking all submissions (e.g. as in InteractiveUsingBinder)
-
-                            var stack = ArrayBuilder<CSharpCompilation>.GetInstance();
-                            var sub = compilation;
-                            while (sub != null)
+                            if (compilation.IsSubmission)
                             {
-                                stack.Push(sub);
-                                sub = sub.PreviousSubmission;
+                                // TODO (acasey): avoid walking all submissions (e.g. as in InteractiveUsingBinder)
+
+                                var stack = ArrayBuilder<CSharpCompilation>.GetInstance();
+                                var sub = compilation;
+                                while (sub != null)
+                                {
+                                    stack.Push(sub);
+                                    sub = sub.PreviousSubmission;
+                                }
+
+                                foreach (var submission in stack)
+                                {
+                                    var usings = submission.GlobalImports.GetUsings(BinderFlags.None);
+                                    if (usings.Length > 0)
+                                    {
+                                        result = new UsingsBinder(result, usings);
+                                    }
+                                }
+
+                                stack.Free();
                             }
-
-                            foreach (var submission in stack)
+                            else
                             {
-                                var usings = submission.GlobalImports.Usings;
+                                var usings = compilation.GlobalImports.GetUsings(BinderFlags.None);
                                 if (usings.Length > 0)
                                 {
                                     result = new UsingsBinder(result, usings);
                                 }
-                            }
-
-                            stack.Free();
-                        }
-                        else
-                        {
-                            var usings = compilation.GlobalImports.Usings;
-                            if (usings.Length > 0)
-                            {
-                                result = new UsingsBinder(result, usings);
                             }
                         }
 

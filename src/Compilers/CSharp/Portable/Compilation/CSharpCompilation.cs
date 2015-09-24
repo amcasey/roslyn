@@ -1185,7 +1185,7 @@ namespace Microsoft.CodeAnalysis.CSharp
         {
             get
             {
-                return GlobalImports.GetUsingsSafe(BinderFlags.None).Select(u => u.NamespaceOrType);
+                return GlobalImports.GetUsings(BinderFlags.None).Select(u => u.NamespaceOrType);
             }
         }
 
