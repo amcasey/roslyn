@@ -35,6 +35,14 @@ namespace Microsoft.CodeAnalysis.CSharp
 
         protected abstract ImmutableArray<Diagnostic> Diagnostics { get; }
 
+        protected Imports(ImmutableArray<AliasAndExternAliasDirective> externs, CSharpCompilation compilation)
+        {
+            Debug.Assert(!externs.IsDefault);
+
+            ExternAliases = externs;
+            _compilation = compilation;
+        }
+
         public static Imports FromSyntax(
             CSharpSyntaxNode declarationSyntax,
             InContainerBinder binder,
@@ -93,6 +101,43 @@ namespace Microsoft.CodeAnalysis.CSharp
                 externDiagnostics.ToReadOnlyAndFree());
         }
 
+        public static Imports FromGlobalUsings(CSharpCompilation compilation)
+        {
+            var usings = compilation.Options.Usings;
+            var diagnostics = DiagnosticBag.GetInstance();
+            var usingsBinder = new InContainerBinder(compilation.GlobalNamespace, new BuckStopsHereBinder(compilation));
+            var boundUsings = ArrayBuilder<NamespaceOrTypeAndUsingDirective>.GetInstance();
+
+            foreach (string ns in usings)
+            {
+                if (!ns.IsValidClrNamespaceName())
+                {
+                    continue;
+                }
+
+                string[] identifiers = ns.Split('.');
+                NameSyntax qualifiedName = SyntaxFactory.IdentifierName(identifiers[0]);
+
+                for (int j = 1; j < identifiers.Length; j++)
+                {
+                    qualifiedName = SyntaxFactory.QualifiedName(left: qualifiedName, right: SyntaxFactory.IdentifierName(identifiers[j]));
+                }
+
+                boundUsings.Add(new NamespaceOrTypeAndUsingDirective(usingsBinder.BindNamespaceOrTypeSymbol(qualifiedName, diagnostics), null));
+            }
+
+            return new Eager(compilation, null, boundUsings.ToImmutableAndFree(), ImmutableArray<AliasAndExternAliasDirective>.Empty, diagnostics.ToReadOnlyAndFree());
+        }
+
+        public static Imports FromCustomDebugInfo(
+            CSharpCompilation compilation,
+            Dictionary<string, AliasAndUsingDirective> usingAliases,
+            ImmutableArray<NamespaceOrTypeAndUsingDirective> usings,
+            ImmutableArray<AliasAndExternAliasDirective> externs)
+        {
+            return new Eager(compilation, usingAliases, usings, externs, ImmutableArray<Diagnostic>.Empty);
+        }
+
         private static ImmutableArray<AliasAndExternAliasDirective> BuildExternAliases(
             SyntaxList<ExternAliasDirectiveSyntax> syntaxList,
             InContainerBinder binder,
@@ -132,51 +177,6 @@ namespace Microsoft.CodeAnalysis.CSharp
             }
 
             return builder.ToImmutableAndFree();
-        }
-
-        public static Imports FromGlobalUsings(CSharpCompilation compilation)
-        {
-            var usings = compilation.Options.Usings;
-            var diagnostics = DiagnosticBag.GetInstance();
-            var usingsBinder = new InContainerBinder(compilation.GlobalNamespace, new BuckStopsHereBinder(compilation));
-            var boundUsings = ArrayBuilder<NamespaceOrTypeAndUsingDirective>.GetInstance();
-
-            foreach (string ns in usings)
-            {
-                if (!ns.IsValidClrNamespaceName())
-                {
-                    continue;
-                }
-
-                string[] identifiers = ns.Split('.');
-                NameSyntax qualifiedName = SyntaxFactory.IdentifierName(identifiers[0]);
-
-                for (int j = 1; j < identifiers.Length; j++)
-                {
-                    qualifiedName = SyntaxFactory.QualifiedName(left: qualifiedName, right: SyntaxFactory.IdentifierName(identifiers[j]));
-                }
-
-                boundUsings.Add(new NamespaceOrTypeAndUsingDirective(usingsBinder.BindNamespaceOrTypeSymbol(qualifiedName, diagnostics), null));
-            }
-
-            return new Eager(compilation, null, boundUsings.ToImmutableAndFree(), ImmutableArray<AliasAndExternAliasDirective>.Empty, diagnostics.ToReadOnlyAndFree());
-        }
-
-        public static Imports FromCustomDebugInfo(
-            CSharpCompilation compilation,
-            Dictionary<string, AliasAndUsingDirective> usingAliases,
-            ImmutableArray<NamespaceOrTypeAndUsingDirective> usings,
-            ImmutableArray<AliasAndExternAliasDirective> externs)
-        {
-            return new Eager(compilation, usingAliases, usings, externs, ImmutableArray<Diagnostic>.Empty);
-        }
-
-        protected Imports(ImmutableArray<AliasAndExternAliasDirective> externs, CSharpCompilation compilation)
-        {
-            Debug.Assert(!externs.IsDefault);
-
-            ExternAliases = externs;
-            _compilation = compilation;
         }
 
         public Dictionary<string, AliasAndUsingDirective> GetUsingAliases(BinderFlags flags)
