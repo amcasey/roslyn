@@ -45,7 +45,8 @@ namespace Microsoft.CodeAnalysis.CSharp
         internal static readonly ParallelOptions DefaultParallelOptions = new ParallelOptions();
 
         private readonly CSharpCompilationOptions _options;
-        private readonly Lazy<Imports> _globalImports;
+        private readonly Lazy<ImmutableArray<NamespaceOrTypeAndUsingDirective>> _externalUsings;
+        private readonly Lazy<Dictionary<string, AliasAndUsingDirective>> _submissionUsingAliases;
         private readonly Lazy<AliasSymbol> _globalNamespaceAlias;  // alias symbol used to resolve "global::".
         private readonly Lazy<ImplicitNamedTypeSymbol> _scriptClass;
         private readonly CSharpCompilation _previousSubmission;
@@ -292,7 +293,8 @@ namespace Microsoft.CodeAnalysis.CSharp
 
             this.builtInOperators = new BuiltInOperators(this);
             _scriptClass = new Lazy<ImplicitNamedTypeSymbol>(BindScriptClass);
-            _globalImports = new Lazy<Imports>(BindGlobalUsings);
+            _externalUsings = new Lazy<ImmutableArray<NamespaceOrTypeAndUsingDirective>>(BindExternalUsings);
+            _submissionUsingAliases = new Lazy<Dictionary<string, AliasAndUsingDirective>>(BindSubmissionUsingAliases);
             _globalNamespaceAlias = new Lazy<AliasSymbol>(CreateGlobalNamespaceAlias);
             _anonymousTypeManager = new AnonymousTypeManager(this);
             this.LanguageVersion = CommonLanguageVersion(syntaxAndDeclarations.ExternalSyntaxTrees);
@@ -1176,18 +1178,22 @@ namespace Microsoft.CodeAnalysis.CSharp
             return namespaceOrType as ImplicitNamedTypeSymbol;
         }
 
-        internal Imports GlobalImports
-        {
-            get { return _globalImports.Value; }
-        }
+        /// <summary>
+        /// Usings that are not from source.  For regular compilations, these are the global usings.
+        /// For submissions, global and declared usings from previous submissions are also included.
+        /// </summary>
+        /// <remarks>
+        /// Always consider whether usings should be considered before accessing this (e.g. not when binding other usings).
+        /// </remarks>
+        internal ImmutableArray<NamespaceOrTypeAndUsingDirective> ExternalUsings => _externalUsings.Value;
 
-        internal IEnumerable<NamespaceOrTypeSymbol> GlobalUsings
-        {
-            get
-            {
-                return GlobalImports.GetUsings(BinderFlags.None).Select(u => u.NamespaceOrType);
-            }
-        }
+        /// <summary>
+        /// Using aliases declared by this submission (null if this isn't one).
+        /// </summary>
+        /// <remarks>
+        /// Always consider whether usings should be considered before accessing this (e.g. not when binding other usings).
+        /// </remarks>
+        internal Dictionary<string, AliasAndUsingDirective> SubmissionUsingAliases => _submissionUsingAliases.Value;
 
         internal AliasSymbol GlobalNamespaceAlias
         {
@@ -1639,30 +1645,6 @@ namespace Microsoft.CodeAnalysis.CSharp
             return GetBinderFactory(declaration.SyntaxReference.SyntaxTree).GetImportsBinder((CSharpSyntaxNode)declaration.SyntaxReference.GetSyntax()).GetImports();
         }
 
-        internal Imports GetSubmissionImports()
-        {
-            return ((SourceNamespaceSymbol)SourceModule.GlobalNamespace).GetBoundImportsMerged().SingleOrDefault() ?? Imports.Empty;
-        }
-
-        internal InteractiveUsingsBinder GetInteractiveUsingsBinder()
-        {
-            Debug.Assert(IsSubmission);
-
-            // empty compilation:
-            if ((object)ScriptClass == null)
-            {
-                Debug.Assert(_syntaxAndDeclarations.ExternalSyntaxTrees.Length == 0);
-                return null;
-            }
-
-            return GetBinderFactory(_syntaxAndDeclarations.ExternalSyntaxTrees.Single()).GetInteractiveUsingsBinder();
-        }
-
-        private Imports BindGlobalUsings()
-        {
-            return Imports.FromGlobalUsings(this);
-        }
-
         private AliasSymbol CreateGlobalNamespaceAlias()
         {
             return AliasSymbol.CreateGlobalNamespaceAlias(this.GlobalNamespace, new InContainerBinder(this.GlobalNamespace, new BuckStopsHereBinder(this)));
@@ -2077,8 +2059,7 @@ namespace Microsoft.CodeAnalysis.CSharp
 
         private ImmutableArray<Diagnostic> GetSourceDeclarationDiagnostics(SyntaxTree syntaxTree = null, TextSpan? filterSpanWithinTree = null, Func<IEnumerable<Diagnostic>, SyntaxTree, TextSpan?, IEnumerable<Diagnostic>> locationFilterOpt = null, CancellationToken cancellationToken = default(CancellationToken))
         {
-            // global imports diagnostics (specified via compilation options):
-            GlobalImports.Complete(cancellationToken);
+            // TODO (acasey): ensure global usings are bound
 
             SourceLocation location = null;
             if (syntaxTree != null)

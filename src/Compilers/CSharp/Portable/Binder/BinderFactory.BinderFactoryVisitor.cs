@@ -805,42 +805,7 @@ namespace Microsoft.CodeAnalysis.CSharp
 
                         if (!inUsing)
                         {
-                            if (compilation.IsSubmission)
-                            {
-                                // TODO (acasey): avoid walking all submissions (e.g. as in InteractiveUsingBinder)
-
-                                var stack = ArrayBuilder<CSharpCompilation>.GetInstance();
-                                var sub = compilation;
-                                while (sub != null)
-                                {
-                                    stack.Push(sub);
-                                    sub = sub.PreviousSubmission;
-                                }
-
-                                foreach (var submission in stack)
-                                {
-                                    var usings = submission.GlobalImports.GetUsings(BinderFlags.None);
-                                    if (usings.Length > 0)
-                                    {
-                                        result = new UsingsBinder(result, usings);
-                                    }
-                                }
-
-                                stack.Free();
-                            }
-                            else
-                            {
-                                var usings = compilation.GlobalImports.GetUsings(BinderFlags.None);
-                                if (usings.Length > 0)
-                                {
-                                    result = new UsingsBinder(result, usings);
-                                }
-                            }
-
-                            if (compilation.IsSubmission)
-                            {
-                                result = new InteractiveUsingsBinder(result);
-                            }
+                            result = new UsingsBinder(result);
                         }
 
                         result = new InContainerBinder(compilation.GlobalNamespace, result);

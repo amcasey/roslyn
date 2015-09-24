@@ -212,7 +212,7 @@ namespace Microsoft.CodeAnalysis.CSharp
 
                 // Add types within namespaces imported through usings, but don't add nested namespaces.
                 LookupOptions usingOptions = (options & ~(LookupOptions.NamespaceAliasesOnly | LookupOptions.NamespacesOrTypesOnly)) | LookupOptions.MustNotBeNamespace;
-                Imports.AddLookupSymbolsInfoInUsings(imports.GetUsings(originalBinder.Flags), this, result, usingOptions);
+                Imports.AddLookupSymbolsInfoInUsings(imports.GetUsings(originalBinder.Flags), originalBinder, result, usingOptions);
             }
         }
 

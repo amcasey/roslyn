@@ -496,7 +496,7 @@ namespace Microsoft.CodeAnalysis.CSharp
                 {
                     var usingAliasSymbol = usingAlias.Alias;
                     var usingAliasTargetSymbol = usingAliasSymbol.GetAliasTarget(basesBeingResolved: null);
-                    if (binder.CanAddLookupSymbolInfo(usingAliasTargetSymbol, options, null))
+                    if (originalBinder.CanAddLookupSymbolInfo(usingAliasTargetSymbol, options, null))
                     {
                         result.AddSymbol(usingAliasSymbol, usingAliasSymbol.Name, 0);
                     }
@@ -509,7 +509,7 @@ namespace Microsoft.CodeAnalysis.CSharp
                 {
                     var externAliasSymbol = externAlias.Alias;
                     var externAliasTargetSymbol = externAliasSymbol.GetAliasTarget(basesBeingResolved: null);
-                    if (binder.CanAddLookupSymbolInfo(externAliasTargetSymbol, options, null))
+                    if (originalBinder.CanAddLookupSymbolInfo(externAliasTargetSymbol, options, null))
                     {
                         result.AddSymbol(externAliasSymbol, externAliasSymbol.Name, 0);
                     }
@@ -518,7 +518,7 @@ namespace Microsoft.CodeAnalysis.CSharp
         }
 
         internal static void AddLookupSymbolsInfoInUsings(
-            ImmutableArray<NamespaceOrTypeAndUsingDirective> usings, Binder binder, LookupSymbolsInfo result, LookupOptions options)
+            ImmutableArray<NamespaceOrTypeAndUsingDirective> usings, Binder originalBinder, LookupSymbolsInfo result, LookupOptions options)
         {
             Debug.Assert(!options.CanConsiderNamespaces());
 
@@ -527,7 +527,7 @@ namespace Microsoft.CodeAnalysis.CSharp
             {
                 foreach (var member in namespaceSymbol.NamespaceOrType.GetMembersUnordered())
                 {
-                    if (binder.CanAddLookupSymbolInfo(member, options, null))
+                    if (originalBinder.CanAddLookupSymbolInfo(member, options, null))
                     {
                         result.AddSymbol(member, member.Name, member.GetArity());
                     }
