@@ -125,6 +125,8 @@
     <Compile Include="Binder\ImplicitlyTypedFieldBinder.cs" />
     <Compile Include="Binder\ImplicitlyTypedLocalBinder.cs" />
     <Compile Include="Binder\ImportChain.cs" />
+    <Compile Include="Binder\Imports.Lazy.cs" />
+    <Compile Include="Binder\Imports.Eager.cs" />
     <Compile Include="Binder\Imports.cs" />
     <Compile Include="Binder\InContainerBinder.cs" />
     <Compile Include="Binder\InMethodBinder.cs" />
