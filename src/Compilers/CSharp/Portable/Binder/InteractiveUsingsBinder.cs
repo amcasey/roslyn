@@ -68,11 +68,11 @@ namespace Microsoft.CodeAnalysis.CSharp
             int resultIndex = 0;
             for (int usingIndex = 0; usingIndex < rebindCount; usingIndex++)
             {
-                var symbol = usingsToRebind[usingIndex];
+                var directive = usingsToRebind[usingIndex];
 
-                if (symbol.NamespaceOrType.Kind == SymbolKind.Namespace)
+                if (directive.NamespaceOrType.Kind == SymbolKind.Namespace)
                 {
-                    var namespaceSymbol = (NamespaceSymbol)symbol.NamespaceOrType;
+                    var namespaceSymbol = (NamespaceSymbol)directive.NamespaceOrType;
                     Debug.Assert(!namespaceSymbol.IsGlobalNamespace);
                     reversedQualifiedName.Clear();
 
@@ -92,10 +92,10 @@ namespace Microsoft.CodeAnalysis.CSharp
                         Debug.Assert((object)newNamespaceSymbol != null);
                     }
 
-                    symbol = new NamespaceOrTypeAndUsingDirective(newNamespaceSymbol, null);
+                    directive = new NamespaceOrTypeAndUsingDirective(newNamespaceSymbol, null);
                 }
 
-                result[resultIndex++] = symbol;
+                result[resultIndex++] = directive;
             }
 
             // Don't add usings that are already present in rebound usings. An error has been

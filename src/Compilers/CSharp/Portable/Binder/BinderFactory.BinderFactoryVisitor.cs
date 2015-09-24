@@ -836,11 +836,11 @@ namespace Microsoft.CodeAnalysis.CSharp
                                     result = new UsingsBinder(result, usings);
                                 }
                             }
-                        }
 
-                        if (compilation.IsSubmission)
-                        {
-                            result = new InteractiveUsingsBinder(result);
+                            if (compilation.IsSubmission)
+                            {
+                                result = new InteractiveUsingsBinder(result);
+                            }
                         }
 
                         result = new InContainerBinder(compilation.GlobalNamespace, result);

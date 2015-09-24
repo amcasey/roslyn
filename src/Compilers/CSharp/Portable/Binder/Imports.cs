@@ -105,7 +105,7 @@ namespace Microsoft.CodeAnalysis.CSharp
         {
             var usings = compilation.Options.Usings;
             var diagnostics = DiagnosticBag.GetInstance();
-            var usingsBinder = new InContainerBinder(compilation.GlobalNamespace, new BuckStopsHereBinder(compilation));
+            var usingsBinder = new InContainerBinder(compilation.GlobalNamespace, new BuckStopsHereBinder(compilation)).WithAdditionalFlags(BinderFlags.IgnoreUsings);
             var boundUsings = ArrayBuilder<NamespaceOrTypeAndUsingDirective>.GetInstance();
 
             foreach (string ns in usings)
