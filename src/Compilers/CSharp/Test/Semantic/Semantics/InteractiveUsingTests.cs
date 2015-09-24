@@ -281,7 +281,8 @@ using static Path;
             CreateSubmission("using System;", previous: CreateSubmission("using System;")).VerifyDiagnostics();
         }
 
-        [Fact]
+        [WorkItem(5423, "https://github.com/dotnet/roslyn/issues/5423")]
+        [Fact(Skip = "https://github.com/dotnet/roslyn/issues/5423")]
         void UsingsFromLoadedScript()
         {
             const string scriptSource = @"
@@ -325,7 +326,8 @@ t = typeof(C); // declaration exposed
                 Diagnostic(ErrorCode.ERR_SingleTypeNameNotFound, "F").WithArguments("F").WithLocation(8, 12));
         }
 
-        [Fact]
+        [WorkItem(5423, "https://github.com/dotnet/roslyn/issues/5423")]
+        [Fact(Skip = "https://github.com/dotnet/roslyn/issues/5423")]
         void UsingsToLoadedScript()
         {
             const string scriptSource = @"
