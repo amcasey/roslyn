@@ -16,18 +16,22 @@ namespace Microsoft.CodeAnalysis.CSharp
             public override Dictionary<string, AliasAndUsingDirective> UsingAliases { get; }
             public override ImmutableArray<NamespaceOrTypeAndUsingDirective> Usings { get; }
 
+            protected override ImmutableArray<Diagnostic> Diagnostics { get; }
+
             public Eager(
                 CSharpCompilation compilation,
                 Dictionary<string, AliasAndUsingDirective> usingAliases,
                 ImmutableArray<NamespaceOrTypeAndUsingDirective> usings,
                 ImmutableArray<AliasAndExternAliasDirective> externs,
-                DiagnosticBag diagnostics)
-                : base(externs, compilation, diagnostics)
+                ImmutableArray<Diagnostic> diagnostics)
+                : base(externs, compilation)
             {
                 Debug.Assert(!usings.IsDefault);
+                Debug.Assert(!diagnostics.IsDefault);
 
                 this.UsingAliases = usingAliases;
                 this.Usings = usings;
+                this.Diagnostics = diagnostics;
             }
         }
     }

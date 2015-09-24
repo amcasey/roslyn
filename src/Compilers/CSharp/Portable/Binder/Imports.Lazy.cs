@@ -21,6 +21,7 @@ namespace Microsoft.CodeAnalysis.CSharp
             private readonly Binder _usingsBinder;
             private readonly ConsList<Symbol> _basesBeingResolved;
             private readonly SyntaxList<UsingDirectiveSyntax> _usingDirectives;
+            private readonly ImmutableArray<Diagnostic> _externDiagnostics;
 
             private ResolvedUsings _lazyResolvedUsings;
 
@@ -29,8 +30,8 @@ namespace Microsoft.CodeAnalysis.CSharp
                 ConsList<Symbol> basesBeingResolved,
                 ImmutableArray<AliasAndExternAliasDirective> externs,
                 SyntaxList<UsingDirectiveSyntax> usingDirectives,
-                DiagnosticBag diagnostics)
-                : base(externs, binder.Compilation, diagnostics)
+                ImmutableArray<Diagnostic> externDiagnostics)
+                : base(externs, binder.Compilation)
             {
                 Debug.Assert(usingDirectives.Count > 0, "Should use eager Imports when there are no usings");
 
@@ -38,10 +39,13 @@ namespace Microsoft.CodeAnalysis.CSharp
                 _usingsBinder = binder.WithFlags(BinderFlags.IgnoreUsings);
                 _basesBeingResolved = basesBeingResolved;
                 _usingDirectives = usingDirectives;
+                _externDiagnostics = externDiagnostics;
             }
 
             public override Dictionary<string, AliasAndUsingDirective> UsingAliases => Resolved.UsingAliases;
             public override ImmutableArray<NamespaceOrTypeAndUsingDirective> Usings => Resolved.Usings;
+
+            protected override ImmutableArray<Diagnostic> Diagnostics => Resolved.Diagnostics;
 
             private ResolvedUsings Resolved
             {
@@ -65,6 +69,9 @@ namespace Microsoft.CodeAnalysis.CSharp
 
                 var uniqueUsings = PooledHashSet<NamespaceOrTypeSymbol>.GetInstance();
 
+                var diagnostics = DiagnosticBag.GetInstance();
+                diagnostics.AddRange(_externDiagnostics);
+
                 foreach (var usingDirective in _usingDirectives)
                 {
                     compilation.RecordImport(usingDirective);
@@ -73,7 +80,7 @@ namespace Microsoft.CodeAnalysis.CSharp
                     {
                         if (usingDirective.StaticKeyword != default(SyntaxToken))
                         {
-                            _diagnostics.Add(ErrorCode.ERR_NoAliasHere, usingDirective.Alias.Name.Location);
+                            diagnostics.Add(ErrorCode.ERR_NoAliasHere, usingDirective.Alias.Name.Location);
                         }
 
                         string identifierValueText = usingDirective.Alias.Name.Identifier.ValueText;
@@ -83,7 +90,7 @@ namespace Microsoft.CodeAnalysis.CSharp
                             if (!usingDirective.Name.IsMissing)
                             {
                                 // The using alias '{0}' appeared previously in this namespace
-                                _diagnostics.Add(ErrorCode.ERR_DuplicateAlias, usingDirective.Alias.Name.Location, identifierValueText);
+                                diagnostics.Add(ErrorCode.ERR_DuplicateAlias, usingDirective.Alias.Name.Location, identifierValueText);
                             }
                         }
                         else
@@ -94,7 +101,7 @@ namespace Microsoft.CodeAnalysis.CSharp
                                 if (externAlias.Alias.Name == identifierValueText)
                                 {
                                     // The using alias '{0}' appeared previously in this namespace
-                                    _diagnostics.Add(ErrorCode.ERR_DuplicateAlias, usingDirective.Location, identifierValueText);
+                                    diagnostics.Add(ErrorCode.ERR_DuplicateAlias, usingDirective.Location, identifierValueText);
                                     break;
                                 }
                             }
@@ -117,16 +124,16 @@ namespace Microsoft.CodeAnalysis.CSharp
                             continue;
                         }
 
-                        var imported = _usingsBinder.BindNamespaceOrTypeSymbol(usingDirective.Name, _diagnostics, _basesBeingResolved);
+                        var imported = _usingsBinder.BindNamespaceOrTypeSymbol(usingDirective.Name, diagnostics, _basesBeingResolved);
                         if (imported.Kind == SymbolKind.Namespace)
                         {
                             if (usingDirective.StaticKeyword != default(SyntaxToken))
                             {
-                                _diagnostics.Add(ErrorCode.ERR_BadUsingType, usingDirective.Name.Location, imported);
+                                diagnostics.Add(ErrorCode.ERR_BadUsingType, usingDirective.Name.Location, imported);
                             }
                             else if (uniqueUsings.Contains(imported))
                             {
-                                _diagnostics.Add(ErrorCode.WRN_DuplicateUsing, usingDirective.Name.Location, imported);
+                                diagnostics.Add(ErrorCode.WRN_DuplicateUsing, usingDirective.Name.Location, imported);
                             }
                             else
                             {
@@ -138,14 +145,14 @@ namespace Microsoft.CodeAnalysis.CSharp
                         {
                             if (usingDirective.StaticKeyword == default(SyntaxToken))
                             {
-                                _diagnostics.Add(ErrorCode.ERR_BadUsingNamespace, usingDirective.Name.Location, imported);
+                                diagnostics.Add(ErrorCode.ERR_BadUsingNamespace, usingDirective.Name.Location, imported);
                             }
                             else
                             {
                                 var importedType = (NamedTypeSymbol)imported;
                                 if (uniqueUsings.Contains(importedType))
                                 {
-                                    _diagnostics.Add(ErrorCode.WRN_DuplicateUsing, usingDirective.Name.Location, importedType);
+                                    diagnostics.Add(ErrorCode.WRN_DuplicateUsing, usingDirective.Name.Location, importedType);
                                 }
                                 else
                                 {
@@ -159,7 +166,7 @@ namespace Microsoft.CodeAnalysis.CSharp
                             // Do not report additional error if the symbol itself is erroneous.
 
                             // error: '<symbol>' is a '<symbol kind>' but is used as 'type or namespace'
-                            _diagnostics.Add(ErrorCode.ERR_BadSKknown, usingDirective.Name.Location,
+                            diagnostics.Add(ErrorCode.ERR_BadSKknown, usingDirective.Name.Location,
                                 usingDirective.Name,
                                 imported.GetKindText(),
                                 MessageID.IDS_SK_TYPE_OR_NAMESPACE.Localize());
@@ -169,20 +176,23 @@ namespace Microsoft.CodeAnalysis.CSharp
 
                 uniqueUsings.Free();
 
-                return new ResolvedUsings(usingAliases, usings.ToImmutableAndFree());
+                return new ResolvedUsings(usingAliases, usings.ToImmutableAndFree(), diagnostics.ToReadOnlyAndFree());
             }
 
             private class ResolvedUsings
             {
                 public readonly Dictionary<string, AliasAndUsingDirective> UsingAliases;
                 public readonly ImmutableArray<NamespaceOrTypeAndUsingDirective> Usings;
+                public readonly ImmutableArray<Diagnostic> Diagnostics;
 
                 public ResolvedUsings(
                     Dictionary<string, AliasAndUsingDirective> usingAliases,
-                    ImmutableArray<NamespaceOrTypeAndUsingDirective> usings)
+                    ImmutableArray<NamespaceOrTypeAndUsingDirective> usings,
+                    ImmutableArray<Diagnostic> diagnostics)
                 {
                     UsingAliases = usingAliases;
                     Usings = usings;
+                    Diagnostics = diagnostics;
                 }
             }
         }
