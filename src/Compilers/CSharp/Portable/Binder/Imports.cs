@@ -403,12 +403,6 @@ namespace Microsoft.CodeAnalysis.CSharp
             bool diagnose,
             ref HashSet<DiagnosticInfo> useSiteDiagnostics)
         {
-            // This is an optimization - the downstream methods would short-circuit on their own.
-            if (originalBinder.Flags.Includes(BinderFlags.IgnoreUsings))
-            {
-                return;
-            }
-
             LookupSymbolInAliases(originalBinder, result, name, arity, basesBeingResolved, options, diagnose, ref useSiteDiagnostics);
 
             if (!result.IsMultiViable && (options & LookupOptions.NamespaceAliasesOnly) == 0)
@@ -427,25 +421,23 @@ namespace Microsoft.CodeAnalysis.CSharp
             bool diagnose,
             ref HashSet<DiagnosticInfo> useSiteDiagnostics)
         {
-            if (originalBinder.Flags.Includes(BinderFlags.IgnoreUsings))
-            {
-                return;
-            }
-
             bool callerIsSemanticModel = originalBinder.IsSemanticModelBinder;
 
-            AliasAndUsingDirective alias;
-            if (this.UsingAliases != null && this.UsingAliases.TryGetValue(name, out alias))
+            if (!originalBinder.Flags.Includes(BinderFlags.IgnoreUsings))
             {
-                // Found a match in our list of normal aliases.  Mark the alias as being seen so that
-                // it won't be reported to the user as something that can be removed.
-                var res = originalBinder.CheckViability(alias.Alias, arity, options, null, diagnose, ref useSiteDiagnostics, basesBeingResolved);
-                if (res.Kind == LookupResultKind.Viable)
+                AliasAndUsingDirective alias;
+                if (this.UsingAliases != null && this.UsingAliases.TryGetValue(name, out alias))
                 {
-                    MarkImportDirective(alias.UsingDirective, callerIsSemanticModel);
-                }
+                    // Found a match in our list of normal aliases.  Mark the alias as being seen so that
+                    // it won't be reported to the user as something that can be removed.
+                    var res = originalBinder.CheckViability(alias.Alias, arity, options, null, diagnose, ref useSiteDiagnostics, basesBeingResolved);
+                    if (res.Kind == LookupResultKind.Viable)
+                    {
+                        MarkImportDirective(alias.UsingDirective, callerIsSemanticModel);
+                    }
 
-                result.MergeEqual(res);
+                    result.MergeEqual(res);
+                }
             }
 
             foreach (var a in this.ExternAliases)
