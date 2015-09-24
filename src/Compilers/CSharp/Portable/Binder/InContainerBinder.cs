@@ -19,14 +19,13 @@ namespace Microsoft.CodeAnalysis.CSharp
         private readonly bool _allowStaticClassUsings;
         private Imports _imports; // might be initialized lazily
         private ImportChain _lazyImportChain;
-        private readonly bool _inUsing;
 
         /// <summary>
         /// Creates a binder for a container with imports (usings and extern aliases) that can be
         /// retrieved from <paramref name="declarationSyntax"/>.
         /// </summary>
-        internal InContainerBinder(NamespaceOrTypeSymbol container, Binder next, CSharpSyntaxNode declarationSyntax, bool allowStaticClassUsings, bool inUsing)
-            : base(next)
+        internal InContainerBinder(NamespaceOrTypeSymbol container, Binder next, CSharpSyntaxNode declarationSyntax, bool allowStaticClassUsings, bool ignoreUsings)
+            : base(next, next.Flags | (ignoreUsings ? BinderFlags.IgnoreUsings : BinderFlags.None))
         {
             Debug.Assert((object)container != null);
             Debug.Assert(declarationSyntax != null);
@@ -34,7 +33,6 @@ namespace Microsoft.CodeAnalysis.CSharp
             _declarationSyntax = declarationSyntax;
             _container = container;
             _allowStaticClassUsings = allowStaticClassUsings;
-            _inUsing = inUsing;
         }
 
         /// <summary>
@@ -74,7 +72,7 @@ namespace Microsoft.CodeAnalysis.CSharp
         {
             if (_imports == null)
             {
-                Interlocked.CompareExchange(ref _imports, Imports.FromSyntax(_declarationSyntax, this, basesBeingResolved, _inUsing), null);
+                Interlocked.CompareExchange(ref _imports, Imports.FromSyntax(_declarationSyntax, this, basesBeingResolved), null);
             }
 
             return _imports;
