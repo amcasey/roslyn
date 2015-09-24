@@ -174,13 +174,7 @@ namespace Microsoft.CodeAnalysis.CSharp
                 return;
             }
 
-            var ignoreUsings = originalBinder.Flags.Includes(BinderFlags.IgnoreUsings);
-            Debug.Assert(!ignoreUsings || basesBeingResolved == null, "Ignoring usings while resolving base?");
-
-            // CONSIDER: Could cache ignoreUsings binder.
-            var imports = ignoreUsings
-                ? _imports ?? Imports.FromSyntax(_declarationSyntax, this, basesBeingResolved, ignoreUsings: true)
-                : GetImports(basesBeingResolved);
+            var imports = GetImports(basesBeingResolved);
 
             // first lookup members of the namespace
             if ((options & LookupOptions.NamespaceAliasesOnly) == 0)

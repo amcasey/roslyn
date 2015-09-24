@@ -57,6 +57,7 @@ namespace Microsoft.CodeAnalysis.CSharp
 
             tmp.Free();
         }
+
         protected override void AddLookupSymbolsInfoInSingleBinder(
             LookupSymbolsInfo result, LookupOptions options, Binder originalBinder)
         {
