@@ -59,7 +59,7 @@ namespace Microsoft.CodeAnalysis.CSharp
                 }
             }
 
-            ImmutableArray<NamespaceOrTypeAndUsingDirective> usings = Imports.Usings;
+            ImmutableArray<NamespaceOrTypeAndUsingDirective> usings = Imports.GetUsingsSafe(BinderFlags.None);
             if (!usings.IsDefault)
             {
                 foreach (var nsOrType in usings)
@@ -80,7 +80,7 @@ namespace Microsoft.CodeAnalysis.CSharp
                 }
             }
 
-            Dictionary<string, AliasAndUsingDirective> aliasSymbols = Imports.UsingAliases;
+            Dictionary<string, AliasAndUsingDirective> aliasSymbols = Imports.GetUsingAliasesSafe(BinderFlags.None);
             if (aliasSymbols != null)
             {
                 foreach (var pair in aliasSymbols)

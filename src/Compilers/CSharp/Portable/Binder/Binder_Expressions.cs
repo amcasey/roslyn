@@ -4382,10 +4382,10 @@ namespace Microsoft.CodeAnalysis.CSharp
         // NOTE: when true is returned, the corresponding using is also marked as "used" 
         private bool IsUsingAliasInScope(string name)
         {
-            var isSemanticModel = this.IsSemanticModelBinder;
+            var flags = this.Flags;
             for (var chain = this.ImportChain; chain != null; chain = chain.ParentOpt)
             {
-                if (chain.Imports.IsUsingAlias(name, isSemanticModel))
+                if (chain.Imports.IsUsingAlias(name, flags))
                 {
                     return true;
                 }

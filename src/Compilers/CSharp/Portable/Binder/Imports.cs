@@ -30,8 +30,8 @@ namespace Microsoft.CodeAnalysis.CSharp
 
         public readonly ImmutableArray<AliasAndExternAliasDirective> ExternAliases;
 
-        public abstract Dictionary<string, AliasAndUsingDirective> UsingAliases { get; }
-        public abstract ImmutableArray<NamespaceOrTypeAndUsingDirective> Usings { get; }
+        protected abstract Dictionary<string, AliasAndUsingDirective> UsingAliases { get; }
+        protected abstract ImmutableArray<NamespaceOrTypeAndUsingDirective> Usings { get; }
 
         protected abstract ImmutableArray<Diagnostic> Diagnostics { get; }
 
@@ -180,6 +180,16 @@ namespace Microsoft.CodeAnalysis.CSharp
             _compilation = compilation;
         }
 
+        public Dictionary<string, AliasAndUsingDirective> GetUsingAliasesSafe(BinderFlags flags)
+        {
+            return (flags.Includes(BinderFlags.IgnoreUsings) ? Empty : this).UsingAliases;
+        }
+
+        public ImmutableArray<NamespaceOrTypeAndUsingDirective> GetUsingsSafe(BinderFlags flags)
+        {
+            return (flags.Includes(BinderFlags.IgnoreUsings) ? Empty : this).Usings;
+        }
+
         private void MarkImportDirective(CSharpSyntaxNode directive, bool callerIsSemanticModel)
         {
             if (directive != null && _compilation != null && !callerIsSemanticModel)
@@ -230,18 +240,20 @@ namespace Microsoft.CodeAnalysis.CSharp
         {
             DiagnosticBag semanticDiagnostics = _compilation.DeclarationDiagnostics;
 
-            if (UsingAliases != null)
+            var usingAliases = GetUsingAliasesSafe(BinderFlags.None);
+
+            if (usingAliases != null)
             {
                 // Check constraints within named aliases.
 
                 // Force resolution of named aliases.
-                foreach (var alias in UsingAliases.Values)
+                foreach (var alias in usingAliases.Values)
                 {
                     alias.Alias.GetAliasTarget(basesBeingResolved: null);
                     semanticDiagnostics.AddRange(alias.Alias.AliasTargetDiagnostics);
                 }
 
-                foreach (var alias in UsingAliases.Values)
+                foreach (var alias in usingAliases.Values)
                 {
                     alias.Alias.CheckConstraints(semanticDiagnostics);
                 }
@@ -257,16 +269,18 @@ namespace Microsoft.CodeAnalysis.CSharp
             semanticDiagnostics.AddRange(Diagnostics);
         }
 
-        internal bool IsUsingAlias(string name, bool callerIsSemanticModel)
+        internal bool IsUsingAlias(string name, BinderFlags flags)
         {
+            var usingAliases = GetUsingAliasesSafe(flags);
+
             AliasAndUsingDirective node;
-            if (this.UsingAliases != null && this.UsingAliases.TryGetValue(name, out node))
+            if (usingAliases != null && usingAliases.TryGetValue(name, out node))
             {
                 // This method is called by InContainerBinder.LookupSymbolsInSingleBinder to see if
                 // there's a conflict between an alias and a member.  As a conflict may cause a
                 // speculative lambda binding to fail this is semantically relevant and we need to
                 // mark this using alias as referenced (and thus not something that can be removed).
-                MarkImportDirective(node.UsingDirective, callerIsSemanticModel);
+                MarkImportDirective(node.UsingDirective, callerIsSemanticModel: flags.Includes(BinderFlags.SemanticModel));
                 return true;
             }
 
@@ -287,7 +301,7 @@ namespace Microsoft.CodeAnalysis.CSharp
 
             if (!result.IsMultiViable && (options & LookupOptions.NamespaceAliasesOnly) == 0)
             {
-                LookupSymbolInUsings(this.Usings, originalBinder, result, name, arity, basesBeingResolved, options, diagnose, ref useSiteDiagnostics);
+                LookupSymbolInUsings(GetUsingsSafe(originalBinder.Flags), originalBinder, result, name, arity, basesBeingResolved, options, diagnose, ref useSiteDiagnostics);
             }
         }
 
@@ -303,21 +317,19 @@ namespace Microsoft.CodeAnalysis.CSharp
         {
             bool callerIsSemanticModel = originalBinder.IsSemanticModelBinder;
 
-            if (!originalBinder.Flags.Includes(BinderFlags.IgnoreUsings))
+            var usingAliases = GetUsingAliasesSafe(originalBinder.Flags);
+            AliasAndUsingDirective alias;
+            if (usingAliases != null && usingAliases.TryGetValue(name, out alias))
             {
-                AliasAndUsingDirective alias;
-                if (this.UsingAliases != null && this.UsingAliases.TryGetValue(name, out alias))
+                // Found a match in our list of normal aliases.  Mark the alias as being seen so that
+                // it won't be reported to the user as something that can be removed.
+                var res = originalBinder.CheckViability(alias.Alias, arity, options, null, diagnose, ref useSiteDiagnostics, basesBeingResolved);
+                if (res.Kind == LookupResultKind.Viable)
                 {
-                    // Found a match in our list of normal aliases.  Mark the alias as being seen so that
-                    // it won't be reported to the user as something that can be removed.
-                    var res = originalBinder.CheckViability(alias.Alias, arity, options, null, diagnose, ref useSiteDiagnostics, basesBeingResolved);
-                    if (res.Kind == LookupResultKind.Viable)
-                    {
-                        MarkImportDirective(alias.UsingDirective, callerIsSemanticModel);
-                    }
-
-                    result.MergeEqual(res);
+                    MarkImportDirective(alias.UsingDirective, callerIsSemanticModel);
                 }
+
+                result.MergeEqual(res);
             }
 
             foreach (var a in this.ExternAliases)
@@ -349,11 +361,6 @@ namespace Microsoft.CodeAnalysis.CSharp
             bool diagnose,
             ref HashSet<DiagnosticInfo> useSiteDiagnostics)
         {
-            if (originalBinder.Flags.Includes(BinderFlags.IgnoreUsings))
-            {
-                return;
-            }
-
             bool callerIsSemanticModel = originalBinder.IsSemanticModelBinder;
 
             foreach (var typeOrNamespace in usings)
@@ -414,11 +421,6 @@ namespace Microsoft.CodeAnalysis.CSharp
         {
             Debug.Assert(methods.Count == 0);
 
-            if (flags.Includes(BinderFlags.IgnoreUsings))
-            {
-                return;
-            }
-
             bool callerIsSemanticModel = flags.Includes(BinderFlags.SemanticModel);
 
             // We need to avoid collecting multiple candidates for an extension method imported both through a namespace and a static class
@@ -426,19 +428,19 @@ namespace Microsoft.CodeAnalysis.CSharp
             bool seenNamespaceWithExtensionMethods = false;
             bool seenStaticClassWithExtensionMethods = false;
 
-            foreach (var nsOrType in this.Usings)
+            foreach (var @using in GetUsingsSafe(flags))
             {
-                switch (nsOrType.NamespaceOrType.Kind)
+                switch (@using.NamespaceOrType.Kind)
                 {
                     case SymbolKind.Namespace:
                         {
                             var count = methods.Count;
-                            ((NamespaceSymbol)nsOrType.NamespaceOrType).GetExtensionMethods(methods, name, arity, options);
+                            ((NamespaceSymbol)@using.NamespaceOrType).GetExtensionMethods(methods, name, arity, options);
 
                             // If we found any extension methods, then consider this using as used.
                             if (methods.Count != count)
                             {
-                                MarkImportDirective(nsOrType.UsingDirective, callerIsSemanticModel);
+                                MarkImportDirective(@using.UsingDirective, callerIsSemanticModel);
                                 seenNamespaceWithExtensionMethods = true;
                             }
 
@@ -448,12 +450,12 @@ namespace Microsoft.CodeAnalysis.CSharp
                     case SymbolKind.NamedType:
                         {
                             var count = methods.Count;
-                            ((NamedTypeSymbol)nsOrType.NamespaceOrType).GetExtensionMethods(methods, name, arity, options);
+                            ((NamedTypeSymbol)@using.NamespaceOrType).GetExtensionMethods(methods, name, arity, options);
 
                             // If we found any extension methods, then consider this using as used.
                             if (methods.Count != count)
                             {
-                                MarkImportDirective(nsOrType.UsingDirective, callerIsSemanticModel);
+                                MarkImportDirective(@using.UsingDirective, callerIsSemanticModel);
                                 seenStaticClassWithExtensionMethods = true;
                             }
 
@@ -483,9 +485,10 @@ namespace Microsoft.CodeAnalysis.CSharp
 
         internal void AddLookupSymbolsInfoInAliases(Binder binder, LookupSymbolsInfo result, LookupOptions options, Binder originalBinder)
         {
-            if (this.UsingAliases != null && !originalBinder.Flags.Includes(BinderFlags.IgnoreUsings))
+            var usingAliases = GetUsingAliasesSafe(originalBinder.Flags);
+            if (usingAliases != null)
             {
-                foreach (var usingAlias in this.UsingAliases.Values)
+                foreach (var usingAlias in usingAliases.Values)
                 {
                     var usingAliasSymbol = usingAlias.Alias;
                     var usingAliasTargetSymbol = usingAliasSymbol.GetAliasTarget(basesBeingResolved: null);

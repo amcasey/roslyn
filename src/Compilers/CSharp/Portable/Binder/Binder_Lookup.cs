@@ -257,7 +257,7 @@ namespace Microsoft.CodeAnalysis.CSharp
                 {
                     // using aliases:
                     Imports imports = submission.GetSubmissionImports();
-                    if (submissionSymbols.Symbols.Count > 0 && imports.IsUsingAlias(name, this.IsSemanticModelBinder))
+                    if (submissionSymbols.Symbols.Count > 0 && imports.IsUsingAlias(name, this.Flags))
                     {
                         // using alias is ambiguous with another definition within the same submission iff the other definition is a 0-ary type or a non-type:
                         Symbol existingDefinition = submissionSymbols.Symbols.First();

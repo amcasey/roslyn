@@ -184,7 +184,7 @@ namespace Microsoft.CodeAnalysis.CSharp
                 if (result.IsMultiViable)
                 {
                     // symbols cannot conflict with using alias names
-                    if (arity == 0 && imports.IsUsingAlias(name, originalBinder.IsSemanticModelBinder))
+                    if (arity == 0 && imports.IsUsingAlias(name, originalBinder.Flags))
                     {
                         CSDiagnosticInfo diagInfo = new CSDiagnosticInfo(ErrorCode.ERR_ConflictAliasAndMember, name, _container);
                         var error = new ExtendedErrorTypeSymbol((NamespaceOrTypeSymbol)null, name, arity, diagInfo, unreported: true);
@@ -212,7 +212,7 @@ namespace Microsoft.CodeAnalysis.CSharp
 
                 // Add types within namespaces imported through usings, but don't add nested namespaces.
                 LookupOptions usingOptions = (options & ~(LookupOptions.NamespaceAliasesOnly | LookupOptions.NamespacesOrTypesOnly)) | LookupOptions.MustNotBeNamespace;
-                Imports.AddLookupSymbolsInfoInUsings(imports.Usings, this, result, usingOptions, originalBinder);
+                Imports.AddLookupSymbolsInfoInUsings(imports.GetUsingsSafe(originalBinder.Flags), this, result, usingOptions, originalBinder);
             }
         }
 

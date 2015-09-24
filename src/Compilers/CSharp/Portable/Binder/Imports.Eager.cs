@@ -13,8 +13,8 @@ namespace Microsoft.CodeAnalysis.CSharp
     {
         private sealed class Eager : Imports
         {
-            public override Dictionary<string, AliasAndUsingDirective> UsingAliases { get; }
-            public override ImmutableArray<NamespaceOrTypeAndUsingDirective> Usings { get; }
+            protected override Dictionary<string, AliasAndUsingDirective> UsingAliases { get; }
+            protected override ImmutableArray<NamespaceOrTypeAndUsingDirective> Usings { get; }
 
             protected override ImmutableArray<Diagnostic> Diagnostics { get; }
 
