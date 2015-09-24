@@ -72,7 +72,7 @@ namespace Microsoft.CodeAnalysis.CSharp
         {
             if (_imports == null)
             {
-                Interlocked.CompareExchange(ref _imports, Imports.FromSyntax(_declarationSyntax, this, basesBeingResolved), null);
+                Interlocked.CompareExchange(ref _imports, Imports.FromSyntax(_declarationSyntax, this, basesBeingResolved, this.Flags.Includes(BinderFlags.IgnoreUsings)), null);
             }
 
             return _imports;
@@ -174,7 +174,13 @@ namespace Microsoft.CodeAnalysis.CSharp
                 return;
             }
 
-            var imports = GetImports(basesBeingResolved);
+            var ignoreUsings = originalBinder.Flags.Includes(BinderFlags.IgnoreUsings);
+            Debug.Assert(!ignoreUsings || basesBeingResolved == null, "Ignoring usings while resolving base?");
+
+            // CONSIDER: Could cache ignoreUsings binder.
+            var imports = ignoreUsings
+                ? _imports ?? Imports.FromSyntax(_declarationSyntax, this, basesBeingResolved, ignoreUsings: true)
+                : GetImports(basesBeingResolved);
 
             // first lookup members of the namespace
             if ((options & LookupOptions.NamespaceAliasesOnly) == 0)

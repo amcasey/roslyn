@@ -49,7 +49,8 @@ namespace Microsoft.CodeAnalysis.CSharp
         public static Imports FromSyntax(
             CSharpSyntaxNode declarationSyntax,
             InContainerBinder binder,
-            ConsList<Symbol> basesBeingResolved)
+            ConsList<Symbol> basesBeingResolved,
+            bool ignoreUsings)
         {
             SyntaxList<UsingDirectiveSyntax> usingDirectives;
             SyntaxList<ExternAliasDirectiveSyntax> externAliasDirectives;
@@ -57,14 +58,14 @@ namespace Microsoft.CodeAnalysis.CSharp
             {
                 var compilationUnit = (CompilationUnitSyntax)declarationSyntax;
                 // using directives are not in scope within using directives
-                usingDirectives = binder.Flags.Includes(BinderFlags.IgnoreUsings) ? default(SyntaxList<UsingDirectiveSyntax>) : compilationUnit.Usings;
+                usingDirectives = ignoreUsings ? default(SyntaxList<UsingDirectiveSyntax>) : compilationUnit.Usings;
                 externAliasDirectives = compilationUnit.Externs;
             }
             else if (declarationSyntax.Kind() == SyntaxKind.NamespaceDeclaration)
             {
                 var namespaceDecl = (NamespaceDeclarationSyntax)declarationSyntax;
                 // using directives are not in scope within using directives
-                usingDirectives = binder.Flags.Includes(BinderFlags.IgnoreUsings) ? default(SyntaxList<UsingDirectiveSyntax>) : namespaceDecl.Usings;
+                usingDirectives = ignoreUsings ? default(SyntaxList<UsingDirectiveSyntax>) : namespaceDecl.Usings;
                 externAliasDirectives = namespaceDecl.Externs;
             }
             else
