@@ -1,5 +1,6 @@
 ﻿// Copyright (c) Microsoft.  All Rights Reserved.  Licensed under the Apache License, Version 2.0.  See License.txt in the project root for license information.
 
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
@@ -19,7 +20,6 @@ namespace Microsoft.CodeAnalysis.CSharp
         private sealed class Lazy : Imports
         {
             private readonly Binder _usingsBinder;
-            private readonly ConsList<Symbol> _basesBeingResolved;
             private readonly SyntaxList<UsingDirectiveSyntax> _usingDirectives;
             private readonly ImmutableArray<Diagnostic> _externDiagnostics;
 
@@ -27,7 +27,6 @@ namespace Microsoft.CodeAnalysis.CSharp
 
             public Lazy(
                 InContainerBinder binder,
-                ConsList<Symbol> basesBeingResolved,
                 ImmutableArray<AliasAndExternAliasDirective> externs,
                 SyntaxList<UsingDirectiveSyntax> usingDirectives,
                 ImmutableArray<Diagnostic> externDiagnostics)
@@ -37,30 +36,29 @@ namespace Microsoft.CodeAnalysis.CSharp
 
                 // Usings are ignored while binding usings.
                 _usingsBinder = binder.WithFlags(BinderFlags.IgnoreUsings);
-                _basesBeingResolved = basesBeingResolved;
                 _usingDirectives = usingDirectives;
                 _externDiagnostics = externDiagnostics;
             }
 
-            protected override Dictionary<string, AliasAndUsingDirective> UsingAliasesInternal => Resolved.UsingAliases;
-            protected override ImmutableArray<NamespaceOrTypeAndUsingDirective> UsingsInternal => Resolved.Usings;
+            protected override Dictionary<string, AliasAndUsingDirective> GetUsingAliasesInternal(ConsList<Symbol> basesBeingResolved) => 
+                GetResolvedUsings(basesBeingResolved).UsingAliases;
 
-            protected override ImmutableArray<Diagnostic> Diagnostics => Resolved.Diagnostics;
+            protected override ImmutableArray<NamespaceOrTypeAndUsingDirective> GetUsingsInternal(ConsList<Symbol> basesBeingResolved) =>
+                GetResolvedUsings(basesBeingResolved).Usings;
 
-            private ResolvedUsings Resolved
+            protected override ImmutableArray<Diagnostic> Diagnostics => GetResolvedUsings(basesBeingResolved: null).Diagnostics;
+
+            private ResolvedUsings GetResolvedUsings(ConsList<Symbol> basesBeingResolved)
             {
-                get
+                if (_lazyResolvedUsings == null)
                 {
-                    if (_lazyResolvedUsings == null)
-                    {
-                        Interlocked.CompareExchange(ref _lazyResolvedUsings, GetResolvedUsings(), null);
-                    }
-
-                    return _lazyResolvedUsings;
+                    Interlocked.CompareExchange(ref _lazyResolvedUsings, GetResolvedUsings(basesBeingResolved), null);
                 }
+
+                return _lazyResolvedUsings;
             }
 
-            private ResolvedUsings GetResolvedUsings()
+            private ResolvedUsings ResolveUsings(ConsList<Symbol> basesBeingResolved)
             {
                 var compilation = _usingsBinder.Compilation;
 
@@ -124,7 +122,7 @@ namespace Microsoft.CodeAnalysis.CSharp
                             continue;
                         }
 
-                        var imported = _usingsBinder.BindNamespaceOrTypeSymbol(usingDirective.Name, diagnostics, _basesBeingResolved);
+                        var imported = _usingsBinder.BindNamespaceOrTypeSymbol(usingDirective.Name, diagnostics, basesBeingResolved);
                         if (imported.Kind == SymbolKind.Namespace)
                         {
                             if (usingDirective.StaticKeyword != default(SyntaxToken))

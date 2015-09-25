@@ -30,8 +30,8 @@ namespace Microsoft.CodeAnalysis.CSharp
 
         public readonly ImmutableArray<AliasAndExternAliasDirective> ExternAliases;
 
-        protected abstract Dictionary<string, AliasAndUsingDirective> UsingAliasesInternal { get; }
-        protected abstract ImmutableArray<NamespaceOrTypeAndUsingDirective> UsingsInternal { get; }
+        protected abstract Dictionary<string, AliasAndUsingDirective> GetUsingAliasesInternal(ConsList<Symbol> basesBeingResolved);
+        protected abstract ImmutableArray<NamespaceOrTypeAndUsingDirective> GetUsingsInternal(ConsList<Symbol> basesBeingResolved);
 
         protected abstract ImmutableArray<Diagnostic> Diagnostics { get; }
 
@@ -95,7 +95,6 @@ namespace Microsoft.CodeAnalysis.CSharp
             DiagnosticBag externDiagnostics = DiagnosticBag.GetInstance();
             return new Lazy(
                 binder,
-                basesBeingResolved,
                 BuildExternAliases(externAliasDirectives, binder, externDiagnostics),
                 usingDirectives,
                 externDiagnostics.ToReadOnlyAndFree());
@@ -179,14 +178,14 @@ namespace Microsoft.CodeAnalysis.CSharp
             return builder.ToImmutableAndFree();
         }
 
-        public Dictionary<string, AliasAndUsingDirective> GetUsingAliases(BinderFlags flags)
+        public Dictionary<string, AliasAndUsingDirective> GetUsingAliases(ConsList<Symbol> basesBeingResolved, BinderFlags flags)
         {
-            return (flags.Includes(BinderFlags.IgnoreUsings) ? Empty : this).UsingAliasesInternal;
+            return (flags.Includes(BinderFlags.IgnoreUsings) ? Empty : this).GetUsingAliasesInternal(basesBeingResolved);
         }
 
-        public ImmutableArray<NamespaceOrTypeAndUsingDirective> GetUsings(BinderFlags flags)
+        public ImmutableArray<NamespaceOrTypeAndUsingDirective> GetUsings(ConsList<Symbol> basesBeingResolved, BinderFlags flags)
         {
-            return (flags.Includes(BinderFlags.IgnoreUsings) ? Empty : this).UsingsInternal;
+            return (flags.Includes(BinderFlags.IgnoreUsings) ? Empty : this).GetUsingsInternal(basesBeingResolved);
         }
 
         private void MarkImportDirective(CSharpSyntaxNode directive, bool callerIsSemanticModel)
@@ -244,7 +243,7 @@ namespace Microsoft.CodeAnalysis.CSharp
         {
             DiagnosticBag semanticDiagnostics = _compilation.DeclarationDiagnostics;
 
-            var usingAliases = GetUsingAliases(BinderFlags.None);
+            var usingAliases = GetUsingAliases(basesBeingResolved: null, flags: BinderFlags.None);
 
             if (usingAliases != null)
             {
@@ -273,9 +272,9 @@ namespace Microsoft.CodeAnalysis.CSharp
             semanticDiagnostics.AddRange(Diagnostics);
         }
 
-        internal bool IsUsingAlias(string name, BinderFlags flags)
+        internal bool IsUsingAlias(string name, ConsList<Symbol> basesBeingResolved, BinderFlags flags) // TODO (acasey): lazy
         {
-            var usingAliases = GetUsingAliases(flags);
+            var usingAliases = GetUsingAliases(basesBeingResolved, flags);
 
             AliasAndUsingDirective node;
             if (usingAliases != null && usingAliases.TryGetValue(name, out node))
@@ -305,7 +304,7 @@ namespace Microsoft.CodeAnalysis.CSharp
 
             if (!result.IsMultiViable && (options & LookupOptions.NamespaceAliasesOnly) == 0)
             {
-                LookupSymbolInUsings(GetUsings(originalBinder.Flags), originalBinder, result, name, arity, basesBeingResolved, options, diagnose, ref useSiteDiagnostics);
+                LookupSymbolInUsings(GetUsings(basesBeingResolved, originalBinder.Flags), originalBinder, result, name, arity, basesBeingResolved, options, diagnose, ref useSiteDiagnostics);
             }
         }
 
@@ -321,7 +320,7 @@ namespace Microsoft.CodeAnalysis.CSharp
         {
             bool callerIsSemanticModel = originalBinder.IsSemanticModelBinder;
 
-            var usingAliases = GetUsingAliases(originalBinder.Flags);
+            var usingAliases = GetUsingAliases(basesBeingResolved, originalBinder.Flags);
             AliasAndUsingDirective alias;
             if (usingAliases != null && usingAliases.TryGetValue(name, out alias))
             {
@@ -432,7 +431,7 @@ namespace Microsoft.CodeAnalysis.CSharp
             bool seenNamespaceWithExtensionMethods = false;
             bool seenStaticClassWithExtensionMethods = false;
 
-            foreach (var @using in GetUsings(flags))
+            foreach (var @using in GetUsings(basesBeingResolved: null, flags: flags))
             {
                 switch (@using.NamespaceOrType.Kind)
                 {
@@ -489,7 +488,7 @@ namespace Microsoft.CodeAnalysis.CSharp
 
         internal void AddLookupSymbolsInfoInAliases(Binder binder, LookupSymbolsInfo result, LookupOptions options, Binder originalBinder)
         {
-            var usingAliases = GetUsingAliases(originalBinder.Flags);
+            var usingAliases = GetUsingAliases(basesBeingResolved: null, flags: originalBinder.Flags);
             if (usingAliases != null)
             {
                 foreach (var usingAlias in usingAliases.Values)

@@ -1636,7 +1636,7 @@ namespace Microsoft.CodeAnalysis.CSharp
 
             InContainerBinder binder = _binderFactory.GetImportsBinder(declarationSyntax.Parent);
             var imports = binder.GetImports();
-            var alias = imports.GetUsingAliases(binder.Flags)[declarationSyntax.Alias.Name.Identifier.ValueText];
+            var alias = imports.GetUsingAliases(basesBeingResolved: null, flags: binder.Flags)[declarationSyntax.Alias.Name.Identifier.ValueText];
 
             if ((object)alias.Alias == null)
             {

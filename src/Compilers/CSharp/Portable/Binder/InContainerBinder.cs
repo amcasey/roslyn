@@ -175,7 +175,7 @@ namespace Microsoft.CodeAnalysis.CSharp
                 this.LookupMembersInternal(result, _container, name, arity, basesBeingResolved, options, originalBinder, diagnose, ref useSiteDiagnostics);
 
                 // next try using aliases or symbols in imported namespaces
-                Imports.LookupSymbolInUsings(imports.GetUsings(originalBinder.Flags), originalBinder, result, name, arity, basesBeingResolved, options, diagnose, ref useSiteDiagnostics);
+                Imports.LookupSymbolInUsings(imports.GetUsings(basesBeingResolved, originalBinder.Flags), originalBinder, result, name, arity, basesBeingResolved, options, diagnose, ref useSiteDiagnostics);
                 return;
             }
 
@@ -187,7 +187,7 @@ namespace Microsoft.CodeAnalysis.CSharp
                 if (result.IsMultiViable)
                 {
                     // symbols cannot conflict with using alias names
-                    if (arity == 0 && imports.IsUsingAlias(name, originalBinder.Flags))
+                    if (arity == 0 && imports.IsUsingAlias(name, basesBeingResolved, originalBinder.Flags))
                     {
                         CSDiagnosticInfo diagInfo = new CSDiagnosticInfo(ErrorCode.ERR_ConflictAliasAndMember, name, _container);
                         var error = new ExtendedErrorTypeSymbol((NamespaceOrTypeSymbol)null, name, arity, diagInfo, unreported: true);
@@ -215,7 +215,7 @@ namespace Microsoft.CodeAnalysis.CSharp
 
                 // Add types within namespaces imported through usings, but don't add nested namespaces.
                 LookupOptions usingOptions = (options & ~(LookupOptions.NamespaceAliasesOnly | LookupOptions.NamespacesOrTypesOnly)) | LookupOptions.MustNotBeNamespace;
-                Imports.AddLookupSymbolsInfoInUsings(imports.GetUsings(originalBinder.Flags), originalBinder, result, usingOptions);
+                Imports.AddLookupSymbolsInfoInUsings(imports.GetUsings(basesBeingResolved: null, flags: originalBinder.Flags), originalBinder, result, usingOptions);
             }
         }
 

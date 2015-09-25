@@ -3,6 +3,7 @@
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
+using Roslyn.Utilities;
 
 namespace Microsoft.CodeAnalysis.CSharp
 {
@@ -13,8 +14,8 @@ namespace Microsoft.CodeAnalysis.CSharp
     {
         private sealed class Eager : Imports
         {
-            protected override Dictionary<string, AliasAndUsingDirective> UsingAliasesInternal { get; }
-            protected override ImmutableArray<NamespaceOrTypeAndUsingDirective> UsingsInternal { get; }
+            private readonly Dictionary<string, AliasAndUsingDirective> _usingAliasesInternal;
+            private readonly ImmutableArray<NamespaceOrTypeAndUsingDirective> _usingsInternal;
 
             protected override ImmutableArray<Diagnostic> Diagnostics { get; }
 
@@ -29,10 +30,13 @@ namespace Microsoft.CodeAnalysis.CSharp
                 Debug.Assert(!usings.IsDefault);
                 Debug.Assert(!diagnostics.IsDefault);
 
-                this.UsingAliasesInternal = usingAliases;
-                this.UsingsInternal = usings;
+                this._usingAliasesInternal = usingAliases;
+                this._usingsInternal = usings;
                 this.Diagnostics = diagnostics;
             }
+
+            protected override Dictionary<string, AliasAndUsingDirective> GetUsingAliasesInternal(ConsList<Symbol> basesBeingResolved) => _usingAliasesInternal;
+            protected override ImmutableArray<NamespaceOrTypeAndUsingDirective> GetUsingsInternal(ConsList<Symbol> basesBeingResolved) => _usingsInternal;
         }
     }
 }

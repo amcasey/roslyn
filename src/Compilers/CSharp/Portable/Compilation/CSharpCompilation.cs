@@ -1187,7 +1187,7 @@ namespace Microsoft.CodeAnalysis.CSharp
 
         private ImmutableArray<NamespaceOrTypeAndUsingDirective> BindExternalUsings()
         {
-            var globalUsings = Imports.FromGlobalUsings(this).GetUsings(BinderFlags.None);
+            var globalUsings = Imports.FromGlobalUsings(this).GetUsings(basesBeingResolved: null, flags: BinderFlags.None);
             return this.PreviousSubmission == null
                 ? globalUsings
                 : this.PreviousSubmission.ExternalUsings.Concat(globalUsings); //TODO (acasey): rebind usings (if refs have changed?)
@@ -1211,7 +1211,7 @@ namespace Microsoft.CodeAnalysis.CSharp
                 }
 
                 var binder = GetBinderFactory(tree).GetImportsBinder((CSharpSyntaxNode)tree.GetRoot());
-                return binder.GetImports().GetUsingAliases(BinderFlags.None);
+                return binder.GetImports().GetUsingAliases(basesBeingResolved: null, flags: BinderFlags.None);
             }
         }
 
