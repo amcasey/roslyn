@@ -21,7 +21,7 @@ namespace Microsoft.CodeAnalysis.CSharp
             usingAliases: null,
             usings: ImmutableArray<NamespaceOrTypeAndUsingDirective>.Empty, 
             externs: ImmutableArray<AliasAndExternAliasDirective>.Empty, 
-            diagnostics: ImmutableArray<Diagnostic>.Empty);
+            diagnostics: null);
 
         private readonly CSharpCompilation _compilation;
 
@@ -33,7 +33,7 @@ namespace Microsoft.CodeAnalysis.CSharp
         protected abstract Dictionary<string, AliasAndUsingDirective> GetUsingAliasesInternal(ConsList<Symbol> basesBeingResolved);
         protected abstract ImmutableArray<NamespaceOrTypeAndUsingDirective> GetUsingsInternal(ConsList<Symbol> basesBeingResolved);
 
-        protected abstract ImmutableArray<Diagnostic> Diagnostics { get; }
+        protected abstract DiagnosticBag Diagnostics { get; }
 
         protected Imports(ImmutableArray<AliasAndExternAliasDirective> externs, CSharpCompilation compilation)
         {
@@ -76,14 +76,14 @@ namespace Microsoft.CodeAnalysis.CSharp
                     return Empty;
                 }
 
-                DiagnosticBag diagnostics = DiagnosticBag.GetInstance();
+                DiagnosticBag diagnostics = new DiagnosticBag();
                 var externs = BuildExternAliases(externAliasDirectives, binder, diagnostics);
                 return new Eager(
                     binder.Compilation, 
                     usingAliases: null, 
                     usings: ImmutableArray<NamespaceOrTypeAndUsingDirective>.Empty, 
                     externs: externs, 
-                    diagnostics: diagnostics.ToReadOnlyAndFree());
+                    diagnostics: diagnostics);
             }
 
             // define all of the extern aliases first. They may used by the target of a using
@@ -92,18 +92,18 @@ namespace Microsoft.CodeAnalysis.CSharp
             // using Foo::Baz;
             // extern alias Foo;
 
-            DiagnosticBag externDiagnostics = DiagnosticBag.GetInstance();
+            DiagnosticBag externDiagnostics = new DiagnosticBag();
             return new Lazy(
                 binder,
                 BuildExternAliases(externAliasDirectives, binder, externDiagnostics),
                 usingDirectives,
-                externDiagnostics.ToReadOnlyAndFree());
+                externDiagnostics);
         }
 
         public static Imports FromGlobalUsings(CSharpCompilation compilation)
         {
             var usings = compilation.Options.Usings;
-            var diagnostics = DiagnosticBag.GetInstance();
+            var diagnostics = new DiagnosticBag();
             var usingsBinder = new InContainerBinder(compilation.GlobalNamespace, new BuckStopsHereBinder(compilation)).WithAdditionalFlags(BinderFlags.IgnoreUsings);
             var boundUsings = ArrayBuilder<NamespaceOrTypeAndUsingDirective>.GetInstance();
 
@@ -125,7 +125,7 @@ namespace Microsoft.CodeAnalysis.CSharp
                 boundUsings.Add(new NamespaceOrTypeAndUsingDirective(usingsBinder.BindNamespaceOrTypeSymbol(qualifiedName, diagnostics), null));
             }
 
-            return new Eager(compilation, null, boundUsings.ToImmutableAndFree(), ImmutableArray<AliasAndExternAliasDirective>.Empty, diagnostics.ToReadOnlyAndFree());
+            return new Eager(compilation, null, boundUsings.ToImmutableAndFree(), ImmutableArray<AliasAndExternAliasDirective>.Empty, diagnostics);
         }
 
         public static Imports FromCustomDebugInfo(
@@ -134,7 +134,7 @@ namespace Microsoft.CodeAnalysis.CSharp
             ImmutableArray<NamespaceOrTypeAndUsingDirective> usings,
             ImmutableArray<AliasAndExternAliasDirective> externs)
         {
-            return new Eager(compilation, usingAliases, usings, externs, ImmutableArray<Diagnostic>.Empty);
+            return new Eager(compilation, usingAliases, usings, externs, diagnostics: null);
         }
 
         private static ImmutableArray<AliasAndExternAliasDirective> BuildExternAliases(
@@ -269,7 +269,11 @@ namespace Microsoft.CodeAnalysis.CSharp
                 semanticDiagnostics.AddRange(alias.Alias.AliasTargetDiagnostics);
             }
 
-            semanticDiagnostics.AddRange(Diagnostics);
+            var diagnostics = Diagnostics;
+            if (diagnostics != null && !diagnostics.IsEmptyWithoutResolution)
+            {
+                semanticDiagnostics.AddRange(diagnostics);
+            }
         }
 
         internal bool IsUsingAlias(string name, BinderFlags flags)

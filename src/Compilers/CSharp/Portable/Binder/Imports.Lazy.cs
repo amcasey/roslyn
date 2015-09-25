@@ -21,7 +21,7 @@ namespace Microsoft.CodeAnalysis.CSharp
         {
             private readonly Binder _usingsBinder;
             private readonly SyntaxList<UsingDirectiveSyntax> _usingDirectives;
-            private readonly ImmutableArray<Diagnostic> _externDiagnostics;
+            private readonly DiagnosticBag _externDiagnostics;
 
             private ResolvedUsings _lazyResolvedUsings;
 
@@ -29,7 +29,7 @@ namespace Microsoft.CodeAnalysis.CSharp
                 InContainerBinder binder,
                 ImmutableArray<AliasAndExternAliasDirective> externs,
                 SyntaxList<UsingDirectiveSyntax> usingDirectives,
-                ImmutableArray<Diagnostic> externDiagnostics)
+                DiagnosticBag externDiagnostics)
                 : base(externs, binder.Compilation)
             {
                 Debug.Assert(usingDirectives.Count > 0, "Should use eager Imports when there are no usings");
@@ -46,7 +46,7 @@ namespace Microsoft.CodeAnalysis.CSharp
             protected override ImmutableArray<NamespaceOrTypeAndUsingDirective> GetUsingsInternal(ConsList<Symbol> basesBeingResolved) =>
                 GetResolvedUsings(basesBeingResolved).Usings;
 
-            protected override ImmutableArray<Diagnostic> Diagnostics => GetResolvedUsings(basesBeingResolved: null).Diagnostics;
+            protected override DiagnosticBag Diagnostics => GetResolvedUsings(basesBeingResolved: null).Diagnostics;
 
             protected override bool TryGetUsingAliasSyntax(string name, out UsingDirectiveSyntax syntax)
             {
@@ -97,7 +97,7 @@ namespace Microsoft.CodeAnalysis.CSharp
 
                 var uniqueUsings = PooledHashSet<NamespaceOrTypeSymbol>.GetInstance();
 
-                var diagnostics = DiagnosticBag.GetInstance();
+                var diagnostics = new DiagnosticBag();
                 diagnostics.AddRange(_externDiagnostics);
 
                 foreach (var usingDirective in _usingDirectives)
@@ -204,19 +204,19 @@ namespace Microsoft.CodeAnalysis.CSharp
 
                 uniqueUsings.Free();
 
-                return new ResolvedUsings(usingAliases, usings.ToImmutableAndFree(), diagnostics.ToReadOnlyAndFree());
+                return new ResolvedUsings(usingAliases, usings.ToImmutableAndFree(), diagnostics);
             }
 
             private class ResolvedUsings
             {
                 public readonly Dictionary<string, AliasAndUsingDirective> UsingAliases;
                 public readonly ImmutableArray<NamespaceOrTypeAndUsingDirective> Usings;
-                public readonly ImmutableArray<Diagnostic> Diagnostics;
+                public readonly DiagnosticBag Diagnostics;
 
                 public ResolvedUsings(
                     Dictionary<string, AliasAndUsingDirective> usingAliases,
                     ImmutableArray<NamespaceOrTypeAndUsingDirective> usings,
-                    ImmutableArray<Diagnostic> diagnostics)
+                    DiagnosticBag diagnostics)
                 {
                     UsingAliases = usingAliases;
                     Usings = usings;

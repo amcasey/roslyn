@@ -19,18 +19,17 @@ namespace Microsoft.CodeAnalysis.CSharp
             private readonly Dictionary<string, AliasAndUsingDirective> _usingAliasesInternal;
             private readonly ImmutableArray<NamespaceOrTypeAndUsingDirective> _usingsInternal;
 
-            protected override ImmutableArray<Diagnostic> Diagnostics { get; }
+            protected override DiagnosticBag Diagnostics { get; }
 
             public Eager(
                 CSharpCompilation compilation,
                 Dictionary<string, AliasAndUsingDirective> usingAliases,
                 ImmutableArray<NamespaceOrTypeAndUsingDirective> usings,
                 ImmutableArray<AliasAndExternAliasDirective> externs,
-                ImmutableArray<Diagnostic> diagnostics)
+                DiagnosticBag diagnostics)
                 : base(externs, compilation)
             {
                 Debug.Assert(!usings.IsDefault);
-                Debug.Assert(!diagnostics.IsDefault);
 
                 this._usingAliasesInternal = usingAliases;
                 this._usingsInternal = usings;
