@@ -67,7 +67,7 @@ namespace Microsoft.CodeAnalysis.CSharp
 
                 foreach (var directive in _usingDirectives)
                 {
-                    if (directive.Alias.Name.Identifier.ValueText == name)
+                    if (directive.Alias?.Name.Identifier.ValueText == name)
                     {
                         syntax = directive;
                         return true;
