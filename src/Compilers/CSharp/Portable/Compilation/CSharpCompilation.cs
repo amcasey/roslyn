@@ -46,7 +46,6 @@ namespace Microsoft.CodeAnalysis.CSharp
 
         private readonly CSharpCompilationOptions _options;
         private readonly Lazy<ImmutableArray<NamespaceOrTypeAndUsingDirective>> _externalUsings;
-        private readonly Lazy<Dictionary<string, AliasAndUsingDirective>> _submissionUsingAliases;
         private readonly Lazy<AliasSymbol> _globalNamespaceAlias;  // alias symbol used to resolve "global::".
         private readonly Lazy<ImplicitNamedTypeSymbol> _scriptClass;
         private readonly CSharpCompilation _previousSubmission;
@@ -294,7 +293,6 @@ namespace Microsoft.CodeAnalysis.CSharp
             this.builtInOperators = new BuiltInOperators(this);
             _scriptClass = new Lazy<ImplicitNamedTypeSymbol>(BindScriptClass);
             _externalUsings = new Lazy<ImmutableArray<NamespaceOrTypeAndUsingDirective>>(BindExternalUsings);
-            _submissionUsingAliases = new Lazy<Dictionary<string, AliasAndUsingDirective>>(BindSubmissionUsingAliases);
             _globalNamespaceAlias = new Lazy<AliasSymbol>(CreateGlobalNamespaceAlias);
             _anonymousTypeManager = new AnonymousTypeManager(this);
             this.LanguageVersion = CommonLanguageVersion(syntaxAndDeclarations.ExternalSyntaxTrees);
@@ -1187,13 +1185,35 @@ namespace Microsoft.CodeAnalysis.CSharp
         /// </remarks>
         internal ImmutableArray<NamespaceOrTypeAndUsingDirective> ExternalUsings => _externalUsings.Value;
 
+        private ImmutableArray<NamespaceOrTypeAndUsingDirective> BindExternalUsings()
+        {
+            var globalUsings = Imports.FromGlobalUsings(this).GetUsings(BinderFlags.None);
+            return this.PreviousSubmission == null
+                ? globalUsings
+                : this.PreviousSubmission.ExternalUsings.Concat(globalUsings);
+        }
+
         /// <summary>
         /// Using aliases declared by this submission (null if this isn't one).
         /// </summary>
         /// <remarks>
         /// Always consider whether usings should be considered before accessing this (e.g. not when binding other usings).
         /// </remarks>
-        internal Dictionary<string, AliasAndUsingDirective> SubmissionUsingAliases => _submissionUsingAliases.Value;
+        internal Dictionary<string, AliasAndUsingDirective> SubmissionUsingAliases
+        {
+            get
+            {
+                // A submission may be empty or comprised of a single script file.
+                var tree = _syntaxAndDeclarations.ExternalSyntaxTrees.SingleOrDefault();
+                if (tree == null)
+                {
+                    return null;
+                }
+
+                var binder = GetBinderFactory(tree).GetImportsBinder((CSharpSyntaxNode)tree.GetRoot());
+                return binder.GetImports().GetUsingAliases(BinderFlags.None);
+            }
+        }
 
         internal AliasSymbol GlobalNamespaceAlias
         {
