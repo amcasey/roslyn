@@ -272,23 +272,28 @@ namespace Microsoft.CodeAnalysis.CSharp
             semanticDiagnostics.AddRange(Diagnostics);
         }
 
-        internal bool IsUsingAlias(string name, ConsList<Symbol> basesBeingResolved, BinderFlags flags) // TODO (acasey): lazy
+        internal bool IsUsingAlias(string name, BinderFlags flags)
         {
-            var usingAliases = GetUsingAliases(basesBeingResolved, flags);
+            if (string.IsNullOrEmpty(name))
+            {
+                return false;
+            }
 
-            AliasAndUsingDirective node;
-            if (usingAliases != null && usingAliases.TryGetValue(name, out node))
+            UsingDirectiveSyntax node;
+            if (TryGetUsingAliasSyntax(name, out node))
             {
                 // This method is called by InContainerBinder.LookupSymbolsInSingleBinder to see if
                 // there's a conflict between an alias and a member.  As a conflict may cause a
                 // speculative lambda binding to fail this is semantically relevant and we need to
                 // mark this using alias as referenced (and thus not something that can be removed).
-                MarkImportDirective(node.UsingDirective, callerIsSemanticModel: flags.Includes(BinderFlags.SemanticModel));
+                MarkImportDirective(node, callerIsSemanticModel: flags.Includes(BinderFlags.SemanticModel));
                 return true;
             }
 
             return false;
         }
+
+        protected abstract bool TryGetUsingAliasSyntax(string name, out UsingDirectiveSyntax syntax);
 
         internal void LookupSymbol(
             Binder originalBinder,

@@ -48,6 +48,36 @@ namespace Microsoft.CodeAnalysis.CSharp
 
             protected override ImmutableArray<Diagnostic> Diagnostics => GetResolvedUsings(basesBeingResolved: null).Diagnostics;
 
+            protected override bool TryGetUsingAliasSyntax(string name, out UsingDirectiveSyntax syntax)
+            {
+                if (_lazyResolvedUsings != null)
+                {
+                    var usingAliases = _lazyResolvedUsings.UsingAliases;
+
+                    AliasAndUsingDirective node;
+                    if (usingAliases != null && usingAliases.TryGetValue(name, out node))
+                    {
+                        syntax = node.UsingDirective;
+                        return true;
+                    }
+
+                    syntax = null;
+                    return false;
+                }
+
+                foreach (var directive in _usingDirectives)
+                {
+                    if (directive.Alias.Name.Identifier.ValueText == name)
+                    {
+                        syntax = directive;
+                        return true;
+                    }
+                }
+
+                syntax = null;
+                return false;
+            }
+
             private ResolvedUsings GetResolvedUsings(ConsList<Symbol> basesBeingResolved)
             {
                 if (_lazyResolvedUsings == null)

@@ -187,7 +187,7 @@ namespace Microsoft.CodeAnalysis.CSharp
                 if (result.IsMultiViable)
                 {
                     // symbols cannot conflict with using alias names
-                    if (arity == 0 && imports.IsUsingAlias(name, basesBeingResolved, originalBinder.Flags))
+                    if (arity == 0 && imports.IsUsingAlias(name, originalBinder.Flags))
                     {
                         CSDiagnosticInfo diagInfo = new CSDiagnosticInfo(ErrorCode.ERR_ConflictAliasAndMember, name, _container);
                         var error = new ExtendedErrorTypeSymbol((NamespaceOrTypeSymbol)null, name, arity, diagInfo, unreported: true);

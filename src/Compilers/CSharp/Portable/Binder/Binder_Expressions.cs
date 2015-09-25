@@ -4385,7 +4385,7 @@ namespace Microsoft.CodeAnalysis.CSharp
             var flags = this.Flags;
             for (var chain = this.ImportChain; chain != null; chain = chain.ParentOpt)
             {
-                if (chain.Imports.IsUsingAlias(name, basesBeingResolved: null, flags: flags))
+                if (chain.Imports.IsUsingAlias(name, flags))
                 {
                     return true;
                 }

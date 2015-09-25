@@ -1,8 +1,10 @@
 ﻿// Copyright (c) Microsoft.  All Rights Reserved.  Licensed under the Apache License, Version 2.0.  See License.txt in the project root for license information.
 
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Roslyn.Utilities;
 
 namespace Microsoft.CodeAnalysis.CSharp
@@ -37,6 +39,19 @@ namespace Microsoft.CodeAnalysis.CSharp
 
             protected override Dictionary<string, AliasAndUsingDirective> GetUsingAliasesInternal(ConsList<Symbol> basesBeingResolved) => _usingAliasesInternal;
             protected override ImmutableArray<NamespaceOrTypeAndUsingDirective> GetUsingsInternal(ConsList<Symbol> basesBeingResolved) => _usingsInternal;
+
+            protected override bool TryGetUsingAliasSyntax(string name, out UsingDirectiveSyntax syntax)
+            {
+                AliasAndUsingDirective node;
+                if (_usingAliasesInternal != null && _usingAliasesInternal.TryGetValue(name, out node))
+                {
+                    syntax = node.UsingDirective;
+                    return true;
+                }
+
+                syntax = null;
+                return false;
+            }
         }
     }
 }
