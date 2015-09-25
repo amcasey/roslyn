@@ -1190,7 +1190,7 @@ namespace Microsoft.CodeAnalysis.CSharp
             var globalUsings = Imports.FromGlobalUsings(this).GetUsings(BinderFlags.None);
             return this.PreviousSubmission == null
                 ? globalUsings
-                : this.PreviousSubmission.ExternalUsings.Concat(globalUsings);
+                : this.PreviousSubmission.ExternalUsings.Concat(globalUsings); //TODO (acasey): rebind usings (if refs have changed?)
         }
 
         /// <summary>

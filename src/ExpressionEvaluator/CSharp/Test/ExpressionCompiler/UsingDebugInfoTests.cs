@@ -350,8 +350,8 @@ public class C
             var evalContext = CreateMethodContext(runtime, "C.Main");
             var compContext = evalContext.CreateCompilationContext(SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression)); // Used to throw.
             var imports = compContext.NamespaceBinder.ImportChain.Single();
-            Assert.Equal("System", imports.Usings.Single().NamespaceOrType.ToTestDisplayString());
-            Assert.Equal("SI", imports.UsingAliases.Keys.Single());
+            Assert.Equal("System", imports.GetUsings(BinderFlags.None).Single().NamespaceOrType.ToTestDisplayString());
+            Assert.Equal("SI", imports.GetUsingAliases(BinderFlags.None).Keys.Single());
             Assert.Equal(0, imports.ExternAliases.Length);
         }
 
@@ -386,8 +386,8 @@ public class C
             var evalContext = CreateMethodContext(runtime, "C.Main");
             var compContext = evalContext.CreateCompilationContext(SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression)); // Used to throw.
             var imports = compContext.NamespaceBinder.ImportChain.Single();
-            Assert.Equal("System", imports.Usings.Single().NamespaceOrType.ToTestDisplayString());
-            Assert.Equal("SI", imports.UsingAliases.Keys.Single());
+            Assert.Equal("System", imports.GetUsings(BinderFlags.None).Single().NamespaceOrType.ToTestDisplayString());
+            Assert.Equal("SI", imports.GetUsingAliases(BinderFlags.None).Keys.Single());
             Assert.Equal(0, imports.ExternAliases.Length);
         }
 
@@ -428,8 +428,8 @@ public class C
             var evalContext = CreateMethodContext(runtime, "C.Main");
             var compContext = evalContext.CreateCompilationContext(SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression));
             var imports = compContext.NamespaceBinder.ImportChain.Single();
-            Assert.Equal("System.IO", imports.Usings.Single().NamespaceOrType.ToTestDisplayString()); // Note: some information is preserved.
-            Assert.Equal(0, imports.UsingAliases.Count);
+            Assert.Equal("System.IO", imports.GetUsings(BinderFlags.None).Single().NamespaceOrType.ToTestDisplayString()); // Note: some information is preserved.
+            Assert.Equal(0, imports.GetUsingAliases(BinderFlags.None).Count);
             Assert.Equal(0, imports.ExternAliases.Length);
         }
 
@@ -473,8 +473,8 @@ namespace N
             var evalContext = CreateMethodContext(runtime, "N.C.Main");
             var compContext = evalContext.CreateCompilationContext(SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression));
             var imports = compContext.NamespaceBinder.ImportChain.Single();
-            Assert.Equal("System", imports.Usings.Single().NamespaceOrType.ToTestDisplayString()); // Note: some information is preserved.
-            Assert.Equal(0, imports.UsingAliases.Count);
+            Assert.Equal("System", imports.GetUsings(BinderFlags.None).Single().NamespaceOrType.ToTestDisplayString()); // Note: some information is preserved.
+            Assert.Equal(0, imports.GetUsingAliases(BinderFlags.None).Count);
             Assert.Equal(0, imports.ExternAliases.Length);
         }
 
@@ -518,8 +518,8 @@ namespace N
             var evalContext = CreateMethodContext(runtime, "N.C.Main");
             var compContext = evalContext.CreateCompilationContext(SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression));
             var imports = compContext.NamespaceBinder.ImportChain.Single();
-            Assert.Equal(0, imports.Usings.Length); // Note: the import is dropped
-            Assert.Equal(0, imports.UsingAliases.Count);
+            Assert.Equal(0, imports.GetUsings(BinderFlags.None).Length); // Note: the import is dropped
+            Assert.Equal(0, imports.GetUsingAliases(BinderFlags.None).Count);
             Assert.Equal(0, imports.ExternAliases.Length);
         }
 
@@ -549,10 +549,10 @@ class C
 
             var imports = importsList.Single();
 
-            Assert.Equal(0, imports.UsingAliases.Count);
+            Assert.Equal(0, imports.GetUsingAliases(BinderFlags.None).Count);
             Assert.Equal(0, imports.ExternAliases.Length);
 
-            var actualNamespace = imports.Usings.Single().NamespaceOrType;
+            var actualNamespace = imports.GetUsings(BinderFlags.None).Single().NamespaceOrType;
             Assert.Equal(SymbolKind.Namespace, actualNamespace.Kind);
             Assert.Equal(NamespaceKind.Module, ((NamespaceSymbol)actualNamespace).Extent.Kind);
             Assert.Equal("System", actualNamespace.ToTestDisplayString());
@@ -582,10 +582,10 @@ class C
 
             var imports = importsList.Single();
 
-            Assert.Equal(0, imports.UsingAliases.Count);
+            Assert.Equal(0, imports.GetUsingAliases(BinderFlags.None).Count);
             Assert.Equal(0, imports.ExternAliases.Length);
 
-            var usings = imports.Usings.Select(u => u.NamespaceOrType).ToArray();
+            var usings = imports.GetUsings(BinderFlags.None).Select(u => u.NamespaceOrType).ToArray();
             Assert.Equal(3, usings.Length);
 
             var expectedNames = new[] { "System", "System.IO", "System.Text" };
@@ -629,10 +629,10 @@ namespace A
             {
                 var imports = importsList[i];
 
-                Assert.Equal(0, imports.UsingAliases.Count);
+                Assert.Equal(0, imports.GetUsingAliases(BinderFlags.None).Count);
                 Assert.Equal(0, imports.ExternAliases.Length);
 
-                var actualNamespace = imports.Usings.Single().NamespaceOrType;
+                var actualNamespace = imports.GetUsings(BinderFlags.None).Single().NamespaceOrType;
                 Assert.Equal(SymbolKind.Namespace, actualNamespace.Kind);
                 Assert.Equal(NamespaceKind.Module, ((NamespaceSymbol)actualNamespace).Extent.Kind);
                 Assert.Equal(expectedNames[i], actualNamespace.ToTestDisplayString());
@@ -661,10 +661,10 @@ class C
 
             var imports = importsList.Single();
 
-            Assert.Equal(0, imports.Usings.Length);
+            Assert.Equal(0, imports.GetUsings(BinderFlags.None).Length);
             Assert.Equal(0, imports.ExternAliases.Length);
 
-            var usingAliases = imports.UsingAliases;
+            var usingAliases = imports.GetUsingAliases(BinderFlags.None);
 
             Assert.Equal(1, usingAliases.Count);
             Assert.Equal("S", usingAliases.Keys.Single());
@@ -701,10 +701,10 @@ class C
 
             var imports = importsList.Single();
 
-            Assert.Equal(0, imports.UsingAliases.Count);
+            Assert.Equal(0, imports.GetUsingAliases(BinderFlags.None).Count);
             Assert.Equal(0, imports.ExternAliases.Length);
 
-            var actualType = imports.Usings.Single().NamespaceOrType;
+            var actualType = imports.GetUsings(BinderFlags.None).Single().NamespaceOrType;
             Assert.Equal(SymbolKind.NamedType, actualType.Kind);
             Assert.Equal("System.Math", actualType.ToTestDisplayString());
         }
@@ -731,10 +731,10 @@ class C
 
             var imports = importsList.Single();
 
-            Assert.Equal(0, imports.Usings.Length);
+            Assert.Equal(0, imports.GetUsings(BinderFlags.None).Length);
             Assert.Equal(0, imports.ExternAliases.Length);
 
-            var usingAliases = imports.UsingAliases;
+            var usingAliases = imports.GetUsingAliases(BinderFlags.None);
 
             Assert.Equal(1, usingAliases.Count);
             Assert.Equal("I", usingAliases.Keys.Single());
@@ -787,12 +787,12 @@ class C
 
             Assert.Equal(0, imports.ExternAliases.Length);
 
-            var @using = imports.Usings.Single();
+            var @using = imports.GetUsings(BinderFlags.None).Single();
             var importedNamespace = @using.NamespaceOrType;
             Assert.Equal(SymbolKind.Namespace, importedNamespace.Kind);
             Assert.Equal("namespace", importedNamespace.Name);
 
-            var usingAliases = imports.UsingAliases;
+            var usingAliases = imports.GetUsingAliases(BinderFlags.None);
 
             const string keyword1 = "object";
             const string keyword2 = "string";
@@ -834,10 +834,10 @@ class C
 
             var imports = importsList.Single();
 
-            Assert.Equal(0, imports.Usings.Length);
+            Assert.Equal(0, imports.GetUsings(BinderFlags.None).Length);
             Assert.Equal(0, imports.ExternAliases.Length);
 
-            var usingAliases = imports.UsingAliases;
+            var usingAliases = imports.GetUsingAliases(BinderFlags.None);
 
             Assert.Equal(1, usingAliases.Count);
             Assert.Equal("I", usingAliases.Keys.Single());
@@ -873,8 +873,8 @@ class C
 
             var imports = importsList.Single();
 
-            Assert.Equal(0, imports.Usings.Length);
-            Assert.Equal(0, imports.UsingAliases.Count);
+            Assert.Equal(0, imports.GetUsings(BinderFlags.None).Length);
+            Assert.Equal(0, imports.GetUsingAliases(BinderFlags.None).Count);
 
             var externAliases = imports.ExternAliases;
 
@@ -920,12 +920,12 @@ class C
 
             Assert.Equal(1, imports.ExternAliases.Length);
 
-            var @using = imports.Usings.Single();
+            var @using = imports.GetUsings(BinderFlags.None).Single();
             var importedNamespace = @using.NamespaceOrType;
             Assert.Equal(SymbolKind.Namespace, importedNamespace.Kind);
             Assert.Equal("System.Xml", importedNamespace.ToTestDisplayString());
 
-            var usingAliases = imports.UsingAliases;
+            var usingAliases = imports.GetUsingAliases(BinderFlags.None);
             Assert.Equal(2, usingAliases.Count);
             AssertEx.SetEqual(usingAliases.Keys, "SXL", "LO");
 
@@ -964,10 +964,10 @@ class C
 
             var imports = importsList.Single();
 
-            Assert.Equal(0, imports.Usings.Length);
+            Assert.Equal(0, imports.GetUsings(BinderFlags.None).Length);
             Assert.Equal(1, imports.ExternAliases.Length);
 
-            var usingAliases = imports.UsingAliases;
+            var usingAliases = imports.GetUsingAliases(BinderFlags.None);
             Assert.Equal(2, usingAliases.Count);
             AssertEx.SetEqual(usingAliases.Keys, "A", "B");
 
