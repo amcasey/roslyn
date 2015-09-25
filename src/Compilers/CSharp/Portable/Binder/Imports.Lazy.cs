@@ -82,7 +82,7 @@ namespace Microsoft.CodeAnalysis.CSharp
             {
                 if (_lazyResolvedUsings == null)
                 {
-                    Interlocked.CompareExchange(ref _lazyResolvedUsings, GetResolvedUsings(basesBeingResolved), null);
+                    Interlocked.CompareExchange(ref _lazyResolvedUsings, ResolveUsings(basesBeingResolved), null);
                 }
 
                 return _lazyResolvedUsings;
