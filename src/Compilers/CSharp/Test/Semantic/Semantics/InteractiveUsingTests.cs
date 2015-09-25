@@ -280,7 +280,7 @@ using static Path;
         }
 
         [WorkItem(5423, "https://github.com/dotnet/roslyn/issues/5423")]
-        [Fact(Skip = "https://github.com/dotnet/roslyn/issues/5423")]
+        [Fact]
         void UsingsFromLoadedScript()
         {
             const string scriptSource = @"
