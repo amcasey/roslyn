@@ -7,13 +7,12 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.CSharp.Test.Utilities;
 using Roslyn.Test.Utilities;
 using Xunit;
+using Microsoft.CodeAnalysis.Test.Utilities;
 
 namespace Microsoft.CodeAnalysis.CSharp.UnitTests
 {
     public class InteractiveUsingTests : CSharpTestBase
     {
-        // TODO (acasey): notes https://github.com/tmat/roslyn/tree/master/docs/specs 
-
         [Fact]
         public void Using()
         {
@@ -277,6 +276,33 @@ using static Path;
         public void DuplicateUsing_DifferentSubmissions()
         {
             CreateSubmission("using System;", previous: CreateSubmission("using System;")).VerifyDiagnostics();
+        }
+
+        [Fact]
+        public void UsingsRebound()
+        {
+            const string libSourceTemplate = @"
+namespace A
+{{
+    public class A{0} {{ }}
+}}
+
+namespace B
+{{
+    public class B{0} {{ }}
+}}
+";
+
+            var lib1 = CreateCompilationWithMscorlib(string.Format(libSourceTemplate, 1), assemblyName: "Lib1").EmitToImageReference();
+            var lib2 = CreateCompilationWithMscorlib(string.Format(libSourceTemplate, 2), assemblyName: "Lib2").EmitToImageReference();
+
+            var options = TestOptions.DebugDll.WithUsings("B");
+
+            var sub1 = CreateSubmission("using A;", new[] { lib1 }, options);
+            sub1.VerifyDiagnostics();
+
+            var sub2 = CreateSubmission("typeof(A1) == typeof(A2) && typeof(B1) == typeof(B2)", new[] { lib1, lib2 }, options: options, previous: sub1);
+            sub2.VerifyDiagnostics();
         }
 
         [WorkItem(5423, "https://github.com/dotnet/roslyn/issues/5423")]
