@@ -1203,7 +1203,7 @@ namespace Microsoft.CodeAnalysis.CSharp
         private Imports BindGlobalImports() => Imports.FromGlobalUsings(this);
 
         /// <summary>
-        /// Imports declared by this submission (null if this isn't one).
+        /// Imports declared by this submission (null if this isn't one). // TODO (acasey): expose cumulative
         /// </summary>
         internal Imports SubmissionImports
         {

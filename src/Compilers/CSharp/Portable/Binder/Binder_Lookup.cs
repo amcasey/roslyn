@@ -272,8 +272,9 @@ namespace Microsoft.CodeAnalysis.CSharp
 
                 if (!submissionSymbols.IsMultiViable)
                 {
-                    // next try using aliases or symbols in imported namespaces
-                    submissionImports.LookupSymbol(originalBinder, submissionSymbols, name, arity, basesBeingResolved, options, diagnose, ref useSiteDiagnostics);
+                    // NB: We diverge from InContainerBinder here and only look in aliases.
+                    // In submissions, regular usings are bubbled up to the outermost scope.
+                    submissionImports.LookupSymbolInAliases(originalBinder, submissionSymbols, name, arity, basesBeingResolved, options, diagnose, ref useSiteDiagnostics);
                 }
 
                 if (lookingForOverloadsOfKind == null)
@@ -1508,7 +1509,6 @@ namespace Microsoft.CodeAnalysis.CSharp
                 }
 
                 // If we are looking only for labels we do not need to search through the imports.
-                // Submission imports are handled by AddMemberLookupSymbolsInfo (above).
                 if ((options & LookupOptions.LabelsOnly) == 0)
                 {
                     var submissionImports = submission.SubmissionImports;
@@ -1516,6 +1516,9 @@ namespace Microsoft.CodeAnalysis.CSharp
                     {
                         submissionImports = Imports.ExpandPreviousSubmissionImports(submissionImports, Compilation);
                     }
+
+                    // NB: We diverge from InContainerBinder here and only look in aliases.
+                    // In submissions, regular usings are bubbled up to the outermost scope.
                     submissionImports.AddLookupSymbolsInfo(result, options, originalBinder);
                 }
             }
